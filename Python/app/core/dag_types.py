@@ -76,22 +76,25 @@ class MMFPath:
 class Scalar:
     dtype: np.float32
 
-    def __init__(self,value):
+    def __init__(self,value, name):
         self.value = value
+        self.name = name
 
     def load_data(self):
         return self.value
     
     def serialize(self):
         return {"datatype": "Scalar",
-                "value": self.value}
+                "value": self.value,
+                "name": self.name}
 
 class Categoric:
     dtype: list
 
-    def __init__(self, options, selectedvalue):
+    def __init__(self, options, selectedvalue, name):
         self.options = options 
         self.selectedvalue = selectedvalue 
+        self.name = name
     
     def load_data(self):
         return self.selectedvalue
@@ -99,7 +102,8 @@ class Categoric:
     def serialize(self):
         return {"datatype": "Categoric",
                 "options": self.options,
-                "selectedvalue": self.selectedvalue}
+                "selectedvalue": self.selectedvalue,
+                "name": self.name}
 
 data_types = {
     "Image2D": Image2D,

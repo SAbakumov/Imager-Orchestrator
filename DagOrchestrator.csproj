@@ -3,11 +3,13 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
+	<RuntimeIdentifier>win-x64</RuntimeIdentifier> 
+	<ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>74a0f094-da5e-4c7b-8929-20ee38ce5580</UserSecretsId>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
-	 <GenerateDocumentationFile>true</GenerateDocumentationFile>
-	 <NoWarn>$(NoWarn);1591</NoWarn>
+	<GenerateDocumentationFile>true</GenerateDocumentationFile>
+	<NoWarn>$(NoWarn);1591</NoWarn>
+
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,7 +19,23 @@
 
   <ItemGroup>
     <Folder Include="Models\" />
-    <Folder Include="Python\" />
+	  <Content Include="Python\**\*"
+			   Exclude="Python\venv\**\*;Python\**\*.pyc;Python\**\__pycache__\**\*">
+		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Content>
   </ItemGroup>
+
+<!--	<ItemGroup>
+		<Content Include="appsettings.json">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+		</Content>
+		<Content Include="appsettings.Development.json">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+		</Content>
+	</ItemGroup> -->
+
+
 
 </Project>

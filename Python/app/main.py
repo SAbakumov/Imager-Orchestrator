@@ -18,10 +18,10 @@ app.include_router(router, prefix="/api")
 @app.get("/api/get_nodes")
 def get_processing_nodes():
 
-    nodelist =  {"processing_nodes" : []}
+    nodelist =  []
     for route in app.routes:
         if "/processing/" in route.path and "get_info" not in route.path:
-            nodelist["processing_nodes"].append(route.path)
+            nodelist.append(route.path)
         
     return nodelist
 

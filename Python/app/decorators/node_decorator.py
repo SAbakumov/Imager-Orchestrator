@@ -25,17 +25,17 @@ def node(input=None, output=None, params=None):
         async def endpoint_info():
             info = {}
 
-            info["input"] = [x.serialize() for x in input]
-            info["output"] = [x.serialize() for x in output]
-            info["params"] = []
+            info["Input"] = [x.serialize() for x in input]
+            info["Output"] = [x.serialize() for x in output]
+            info["Parameters"] = []
 
-            for param in params["params"]:
-                info["params"].append(param["type"].serialize())
+            for param in params["Parameters"]:
+                info["Parameters"].append(param["type"].serialize())
                 
 
 
 
-            return {"node_info": info}
+            return info
         
 
 
