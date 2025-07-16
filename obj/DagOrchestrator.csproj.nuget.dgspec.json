@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Documents\\ImagerAvalonia\\ImagerTest\\imageravalonia\\DagOrchestrator\\DagOrchestrator.csproj": {}
+    "C:\\Documents\\ImagerAvalonia\\ImagerMaster\\imageravalonia\\DagOrchestrator\\DagOrchestrator.csproj": {}
   },
   "projects": {
-    "C:\\Documents\\ImagerAvalonia\\ImagerTest\\imageravalonia\\DagOrchestrator\\DagOrchestrator.csproj": {
+    "C:\\Documents\\ImagerAvalonia\\ImagerMaster\\imageravalonia\\DagOrchestrator\\DagOrchestrator.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Documents\\ImagerAvalonia\\ImagerTest\\imageravalonia\\DagOrchestrator\\DagOrchestrator.csproj",
+        "projectUniqueName": "C:\\Documents\\ImagerAvalonia\\ImagerMaster\\imageravalonia\\DagOrchestrator\\DagOrchestrator.csproj",
         "projectName": "DagOrchestrator",
-        "projectPath": "C:\\Documents\\ImagerAvalonia\\ImagerTest\\imageravalonia\\DagOrchestrator\\DagOrchestrator.csproj",
+        "projectPath": "C:\\Documents\\ImagerAvalonia\\ImagerMaster\\imageravalonia\\DagOrchestrator\\DagOrchestrator.csproj",
         "packagesPath": "C:\\Users\\abaku\\.nuget\\packages\\",
-        "outputPath": "C:\\Documents\\ImagerAvalonia\\ImagerTest\\imageravalonia\\DagOrchestrator\\obj\\",
+        "outputPath": "C:\\Documents\\ImagerAvalonia\\ImagerMaster\\imageravalonia\\DagOrchestrator\\obj\\",
         "projectStyle": "PackageReference",
         "centralPackageVersionsManagementEnabled": true,
         "fallbackFolders": [
@@ -87,6 +87,11 @@
             }
           },
           "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.301/PortableRuntimeIdentifierGraph.json"
+        }
+      },
+      "runtimes": {
+        "win-x64": {
+          "#import": []
         }
       }
     }
