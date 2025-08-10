@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Documents\\ImagerAvalonia\\ImagerMaster\\imageravalonia\\DagOrchestrator\\DagOrchestrator.csproj": {}
+    "C:\\Documents\\ImagerAvalonia\\ImagerTest\\imageravalonia\\DagOrchestrator\\DagOrchestrator.csproj": {}
   },
   "projects": {
-    "C:\\Documents\\ImagerAvalonia\\ImagerMaster\\imageravalonia\\DagOrchestrator\\DagOrchestrator.csproj": {
+    "C:\\Documents\\ImagerAvalonia\\ImagerTest\\imageravalonia\\DagOrchestrator\\DagOrchestrator.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Documents\\ImagerAvalonia\\ImagerMaster\\imageravalonia\\DagOrchestrator\\DagOrchestrator.csproj",
+        "projectUniqueName": "C:\\Documents\\ImagerAvalonia\\ImagerTest\\imageravalonia\\DagOrchestrator\\DagOrchestrator.csproj",
         "projectName": "DagOrchestrator",
-        "projectPath": "C:\\Documents\\ImagerAvalonia\\ImagerMaster\\imageravalonia\\DagOrchestrator\\DagOrchestrator.csproj",
+        "projectPath": "C:\\Documents\\ImagerAvalonia\\ImagerTest\\imageravalonia\\DagOrchestrator\\DagOrchestrator.csproj",
         "packagesPath": "C:\\Users\\abaku\\.nuget\\packages\\",
-        "outputPath": "C:\\Documents\\ImagerAvalonia\\ImagerMaster\\imageravalonia\\DagOrchestrator\\obj\\",
+        "outputPath": "C:\\Documents\\ImagerAvalonia\\ImagerTest\\imageravalonia\\DagOrchestrator\\obj\\",
         "projectStyle": "PackageReference",
         "centralPackageVersionsManagementEnabled": true,
         "fallbackFolders": [
@@ -52,9 +52,19 @@
         "net8.0": {
           "targetAlias": "net8.0",
           "dependencies": {
+            "Microsoft.AspNetCore.Mvc.NewtonsoftJson": {
+              "target": "Package",
+              "version": "[8.0.19, )",
+              "versionCentrallyManaged": true
+            },
             "Microsoft.VisualStudio.Azure.Containers.Tools.Targets": {
               "target": "Package",
               "version": "[1.22.1-Preview.1, )",
+              "versionCentrallyManaged": true
+            },
+            "Newtonsoft.Json": {
+              "target": "Package",
+              "version": "[13.0.3, )",
               "versionCentrallyManaged": true
             },
             "Swashbuckle.AspNetCore": {
@@ -64,7 +74,9 @@
             }
           },
           "centralPackageVersions": {
+            "Microsoft.AspNetCore.Mvc.NewtonsoftJson": "8.0.19",
             "Microsoft.VisualStudio.Azure.Containers.Tools.Targets": "1.22.1-Preview.1",
+            "Newtonsoft.Json": "13.0.3",
             "Swashbuckle.AspNetCore": "6.6.2"
           },
           "imports": [
