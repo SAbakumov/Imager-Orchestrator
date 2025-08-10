@@ -29,16 +29,14 @@ class Image2D(ArrayType):
     ndim: int = 2
     dtype: str = "float32" 
     image_shape: list 
-    image_type: str 
-    image_dir: str
+    # image_type: str 
+    # image_dir: str
     
-    def __init__(self, image_shape, image_type, image_dir ):
-        self.image_shape = image_shape
-        self.image_type = image_type 
+    def __init__(self,  image_dir ):
         self.image_dir =  image_dir
 
     def load_data(self):
-            return MMFProcessor.load_array_from_mmf(self.image_dir,shape = self.image_shape,input_type = self.dtype )  
+            return MMFProcessor.load_array_from_mmf(self.image_dir)  
 
     @staticmethod  
     def serialize():
@@ -61,7 +59,7 @@ class Volume3D(ArrayType):
         self.image_dir =  image_dir
 
     def load_data(self):
-        return MMFProcessor.load_array_from_mmf(self.image_dir,shape = self.image_shape,input_type = self.dtype )
+        return MMFProcessor.load_array_from_mmf(self.image_dir)
 
 class MMFPath:
     dtype: str 
@@ -110,4 +108,5 @@ data_types = {
     "Volume3D": Volume3D,
     "MMFPath": MMFPath,
     "Scalar": Scalar,
+    "Categoric": Categoric
 }

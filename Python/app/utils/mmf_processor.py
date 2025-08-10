@@ -10,6 +10,6 @@ class MMFProcessor:
         mmf_map.flush()
 
     @staticmethod
-    def load_array_from_mmf(path: str, shape: list, input_type: str):
-        fp = np.memmap(path, dtype=input_type, mode='r', shape=shape)
+    def load_array_from_mmf(path: str):
+        fp = np.memmap(path, mode='r')
         return fp
