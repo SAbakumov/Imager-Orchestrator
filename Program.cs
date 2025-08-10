@@ -1,12 +1,16 @@
 using DagOrchestrator.Services;
 using Microsoft.OpenApi.Models;
+using Newtonsoft;
 using System.Reflection;
+using Microsoft.Extensions.DependencyInjection;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.WebHost.UseKestrel();
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddNewtonsoftJson();
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options  =>
@@ -29,6 +33,7 @@ builder.Services.AddSwaggerGen(options  =>
 
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<PythonComService>();
+builder.Services.AddTransient<NodeProcessor>();
 
 var app = builder.Build();
 
