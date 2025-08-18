@@ -1,11 +1,15 @@
+using DagOrchestrator.Exceptions;
+using DagOrchestrator.Models;
 using DagOrchestrator.Services;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OpenApi.Models;
 using Newtonsoft;
+using System.Net;
 using System.Reflection;
-using Microsoft.Extensions.DependencyInjection;
 
 
 var builder = WebApplication.CreateBuilder(args);
+System.Net.ServicePointManager.Expect100Continue = false;
 
 // Add services to the container.
 builder.WebHost.UseKestrel();
@@ -30,16 +34,33 @@ builder.Services.AddSwaggerGen(options  =>
 });
 
 
+builder.Services.AddHttpClient<PythonComService>(client =>
+{
+    client.BaseAddress = new Uri("http://127.0.0.1:8400");
+}).ConfigurePrimaryHttpMessageHandler(() =>
+{
+    var handler = new HttpClientHandler();
+    handler.SslProtocols = System.Security.Authentication.SslProtocols.Tls13 | System.Security.Authentication.SslProtocols.Tls12;
+    return handler;
+}); ;
 
-builder.Services.AddHttpClient();
-builder.Services.AddSingleton<PythonComService>();
+
 builder.Services.AddTransient<NodeProcessor>();
+builder.Services.AddTransient<DagProcessingService>();       
+
+builder.Services.AddHostedService<DagProcessingService>();
+builder.Services.AddSingleton<IDagScheduler,DagScheduler>();
+builder.Services.AddExceptionHandler<DeserializationExceptionHandler>();
+builder.Services.AddProblemDetails();
+
+
 
 var app = builder.Build();
 
 // MAKE SURE IT IS SET TO DEVELOPMENT.
 //if (app.Environment.IsDevelopment())
 //{
+app.UseExceptionHandler();
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseHttpsRedirection();

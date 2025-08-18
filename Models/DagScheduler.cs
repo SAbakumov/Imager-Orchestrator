@@ -1,6 +1,69 @@
-﻿namespace DagOrchestrator.Models
+﻿using DagOrchestrator.Services;
+using Newtonsoft.Json.Linq;
+
+namespace DagOrchestrator.Models
 {
-    public class DagScheduler
+    public interface IDagScheduler
     {
+        public void StartSubmission();
+        public void SetDagNodes(List<DagNode> dagNodes);
+        public DagNode? RetrieveSubmissionReadyNode();
+        public void RemoveNode(DagNode node);
+        public DagNode? RetrieveNodeByNodeID(string nodeid);
+    }
+
+    public class DagScheduler : IDagScheduler
+    {
+        private readonly object _lock = new();
+        private readonly PythonComService _pythonComService;
+
+        List<DagNode> DagNodes = new();
+
+        public DagScheduler(PythonComService pythonComService)
+        {
+            _pythonComService = pythonComService;   
+        }
+
+        public void SetDagNodes(List<DagNode> dagNodes)
+        {
+            DagNodes = dagNodes;
+        }
+        //TODO - implement Submission logic
+        public void StartSubmission()
+        {
+
+            var dagnode = RetrieveSubmissionReadyNode();
+
+        }
+        public void RemoveNode(DagNode node)
+        {
+            DagNodes.Remove(node);
+        }
+
+        public DagNode? RetrieveSubmissionReadyNode()
+        {
+            lock (_lock)
+            {
+                foreach (var node in DagNodes)
+                {
+                    if(node.InputNodes.Count==0)
+                    {
+                        return node;
+                    }
+                    var parameters = node.InputParameters?.Input ?? new List<InputParameter>();
+                    var input_paths = parameters.Where(x => x.IsInputNode?.Value<bool>() ?? false).ToList();
+                    bool are_all_paths_occupied = input_paths.Select(x => File.Exists(x.ImageDir?.ToString())).All(x => x);
+                    if (are_all_paths_occupied)
+                    {
+                        return node;
+                    }
+                }
+            }
+            return null;
+        }
+        public DagNode? RetrieveNodeByNodeID(string id)
+        {
+            return DagNodes.First(x => x.NodeId.ToString() == id);
+        }
     }
 }

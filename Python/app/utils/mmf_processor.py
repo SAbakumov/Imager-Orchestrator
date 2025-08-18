@@ -1,5 +1,5 @@
 import numpy as np 
-
+import tifffile as TiffFile
 
 class MMFProcessor:
 
@@ -11,5 +11,10 @@ class MMFProcessor:
 
     @staticmethod
     def load_array_from_mmf(path: str):
-        fp = np.memmap(path, mode='r')
-        return fp
+        images = []
+        with TiffFile.TiffFile(path) as tif:
+            for page in tif.pages:
+                images.append(page.asarray().astype(dtype=np.float32))
+
+        # fp = np.memmap(path, mode='r')
+        return images
