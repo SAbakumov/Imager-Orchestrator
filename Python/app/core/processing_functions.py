@@ -49,8 +49,8 @@ async def image_arithmetic(input_arr1,input_arr2, input_option):
             result = img1 * img2
         case _:
             raise ValueError(f"Unsupported operation: {input_option}")
-
     return result
+
 
 
 @node(input=[Image2D], output=[], params= 

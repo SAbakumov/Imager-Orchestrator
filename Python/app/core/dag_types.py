@@ -198,3 +198,4 @@ data_types = {
     "Categoric": Categoric,
     "Text": Text,
     "Image2DPath": Image2DPath}
+
