@@ -27,6 +27,16 @@ namespace DagOrchestrator.Models
                     _jsonObject["input_params"] = _inputParams;
             }
         }
+        private JValue? _isInputNode;
+
+        [JsonProperty("isinputnode")]
+        private JValue? IsInputNodeSetter
+        {
+            set => _isInputNode = value; 
+        }
+
+        [JsonIgnore]
+        public JValue? IsInputNode => _isInputNode; 
 
         [JsonIgnore]
         public string? ImageDir
@@ -81,6 +91,9 @@ namespace DagOrchestrator.Models
 
         [JsonProperty("api_path")]
         public string? ApiPath { get; set; }
+
+        [JsonProperty("output_nodes")]
+        public List<List<string>>? OutputNodes { get; set; }
     }
 
     public class InputParametersContainer
