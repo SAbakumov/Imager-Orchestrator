@@ -1,7 +1,8 @@
 # main.py
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from app.routers.processing_router import router
 import uvicorn
+import time
 
 
 import plotly.express as px
@@ -13,6 +14,17 @@ app = FastAPI()
 app.include_router(router, prefix="/api")
 
 
+@app.get("/ping")
+async def ping():
+    return {"status": "ok"}
+
+@app.post("/api/test")
+async def test_endpoint(request: Request):
+    start = time.time()
+    data = await request.json()  # read JSON payload
+    end = time.time()
+    elapsed = end - start
+    return {"received": data, "elapsed_seconds": elapsed}
 
 
 @app.get("/api/get_nodes")

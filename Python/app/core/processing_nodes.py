@@ -6,11 +6,13 @@ class InputParams(BaseModel):
 
 
 class InputItem(BaseModel):
-    input_type: Literal["Image2D", "Volume3D", "MMFPath","numeric"]
+    input_type: Literal["Image2D", "Volume3D", "MMFPath","numeric", "Scalar", "Categoric","Text","Image2DPath"]
     input_params: InputParams
+
 
 class NodeInput(BaseModel):
     node_id: str
     input: List[InputItem]
+
 
 

@@ -1,68 +1,37 @@
-import numpy as np 
-
-from fastapi import  Request
+from typing import List, Optional
+from fastapi import Request
 from app.core.processing_nodes import NodeInput
-from app.core.dag_types import data_types
+from app.core.dag_types import data_types, IOType
 from app.routers.processing_router import router
 
-
-def node(input=None, output=None, params=None):
+def node(input: Optional[List] = None, output: Optional[List[IOType]] = None, params: Optional[dict] = None):
     def decorator(func):
         async def endpoint(request: Request):
-            json_input = await request.json()
-            node_input = NodeInput(**json_input)
-            
+            node_input = NodeInput(**await request.json())
 
-            argvals = []
-            for input_vals in node_input.input:
-                data_class = data_types[input_vals.input_type](**input_vals.input_params.input_json_params)
-                argvals.append(data_class.load_data())
+            argvals = [
+                data_types[input_val.input_type](**input_val.input_params.input_json_params).load_data()
+                for input_val in node_input.input
+            ]
 
-            result = await func(*argvals)
+            results = await func(*argvals)
+            if not isinstance(results, tuple):
+                results = [results]
+            return [
+                datatype.set_result(result, f"{node_input.node_id}.out{out_id}")
+                for out_id, (datatype, result) in enumerate(zip(output or [], results))
+            ]
 
-            return {"result": result}
-     
         async def endpoint_info():
-            info = {}
+            return {
+                "Input": [x.serialize() for x in input or []],
+                "Output": [x.serialize() for x in output or []],
+                "Parameters": [param["type"].serialize() for param in (params or {}).get("Parameters", [])]
+            }
 
-            info["Input"] = [x.serialize() for x in input]
-            info["Output"] = [x.serialize() for x in output]
-            info["Parameters"] = []
+        router.add_api_route(f'/processing/{func.__name__}', endpoint=endpoint, methods=["POST"])
+        router.add_api_route(f'/processing/{func.__name__}/get_info', endpoint=endpoint_info, methods=["GET"])
 
-            for param in params["Parameters"]:
-                info["Parameters"].append(param["type"].serialize())
-                
-
-
-
-            return info
-        
-
-
-        router.add_api_route(f'/processing/{func.__name__}',endpoint = endpoint, methods=["POST"])
-        router.add_api_route(f'/processing/{func.__name__}/get_info',endpoint = endpoint_info, methods=["GET"])
+        return func  # Important: return original function
 
     return decorator
-        
-
-"""
-Structure of the json payload:
-{
-    node_id: HASH_NODE_ID,
-    input: [
-    {
-        input_dir: mmf/path/to/dir,
-        input_type: Type (Image2D, Image3D)
-        input_shape: [int, int...]
-    },
-    {
-        input_dir: mmf/path/to/dir,
-        input_type: Type (Image2D, Image3D)
-        input_shape: [int, int...]
-    },
-    ...
-    ]
-}
-
-"""
-
