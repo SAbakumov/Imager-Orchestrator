@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 from pathlib import Path
 from pydantic import BaseModel
+from imagedata.image_data_handler import image_provider
 from app.utils.mmf_processor import MMFProcessor
 from app.utils.array_utils import NPYArrayIO
 from app.utils.tif_utils import TIFFStackLoader
@@ -62,6 +63,27 @@ class Image2DPath():
     def serialize() -> dict:
         return {"datatype": "Image2DPath", "image_dir": ""}
 
+# -------------------------------
+# Measurement Element type
+# -------------------------------
+class MeasurementElement():
+   
+
+    def __init__(self, image_dir):
+        self.image_dir = image_dir
+    def load_data(self):
+        return self.image_dir
+
+    @staticmethod
+    def serialize() -> dict:
+        return {"datatype": "MeasurementElement"}
+
+    @staticmethod
+    def set_result(measurement_element, name: str) -> dict:    
+        return measurement_element.serialize()
+
+
+
    
 # -------------------------------
 # 2D Image type
@@ -74,9 +96,21 @@ class Image2D(ArrayType):
 
     def __init__(self, image_dir: str):
         super().__init__(image_dir=image_dir)
-        self.image_dir = Path(self.image_dir)
+        prefix = image_dir.split("::")[0]
+
+        if prefix == "fromprovider":
+            self.image_dir = image_dir
+        else:
+            self.image_dir = Path(self.image_dir)
+
 
     def load_data(self) -> np.ndarray:
+        if not isinstance(self.image_dir, Path):
+
+            prefix = self.image_dir.split("::")[0]
+            if prefix == "fromprovider":
+                return image_provider.image_data[self.image_dir.split("::")[1]]
+            
         if not self.image_dir.exists():
             raise FileNotFoundError(f"{self.image_dir} does not exist.")
         if self.image_dir.suffix.lower() in [".tif", ".tiff"]:
@@ -137,6 +171,30 @@ class MMFPath:
     def load_data(self) -> str:
         return self.image_dir
 
+class AcquisitionName:
+    dtype: str
+    def __init__(self, value: str, name: str):
+        self.value = value
+        self.name = name
+
+    def load_data(self) -> str:
+        return self.value
+    
+    def serialize(self) -> dict:
+        return {"datatype": "AcquisitionName", "ImagePath": self.value, "name": self.name}
+    
+class DetectorName:
+    dtype: str
+    def __init__(self, value: str, name: str):
+        self.value = value
+        self.name = name
+
+    def load_data(self) -> str:
+        return self.value
+    
+    def serialize(self) -> dict:
+        return {"datatype": "DetectorName", "ImagePath": self.value, "name": self.name}
+
 
 class Scalar:
     dtype: np.float32
@@ -192,10 +250,13 @@ class Categoric:
 # -------------------------------
 data_types = {
     "Image2D": Image2D,
+    "MeasurementElement": MeasurementElement,
     "Volume3D": Volume3D,
     "MMFPath": MMFPath,
     "Scalar": Scalar,
     "Categoric": Categoric,
     "Text": Text,
-    "Image2DPath": Image2DPath}
+    "Image2DPath": Image2DPath,
+    "AcquisitionName": AcquisitionName,
+    "DetectorName": DetectorName}
 

@@ -46,10 +46,14 @@ builder.Services.AddHttpClient<PythonComService>(client =>
 
 
 builder.Services.AddTransient<NodeProcessor>();
-builder.Services.AddTransient<DagProcessingService>();       
+builder.Services.AddTransient<DagProcessingService>();
+builder.Services.AddSingleton<DagRegisterService>();
+builder.Services.AddSingleton<JobSubmissionService>();
+
 
 builder.Services.AddHostedService<DagProcessingService>();
 builder.Services.AddSingleton<IDagScheduler,DagScheduler>();
+
 builder.Services.AddExceptionHandler<DeserializationExceptionHandler>();
 builder.Services.AddProblemDetails();
 

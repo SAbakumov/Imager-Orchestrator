@@ -29,13 +29,13 @@ namespace DagOrchestrator.Services
             return func_info;
         }
 
-        public async Task<string> SubmitImagerAPICall(string route, string nodeinfo)
+        public async Task<HttpResponseMessage> SubmitImagerAPICall(string route, string nodeinfo)
         {
 
             var payload = new StringContent(nodeinfo, Encoding.UTF8, "application/json");
             var response = await _httpClient.PostAsync(route, payload);
 
-            return await response.Content.ReadAsStringAsync();
+            return response;
         }
 
 

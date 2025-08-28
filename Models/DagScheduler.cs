@@ -1,15 +1,17 @@
 ﻿using DagOrchestrator.Services;
 using Newtonsoft.Json.Linq;
+using System.Xml.Linq;
 
 namespace DagOrchestrator.Models
 {
     public interface IDagScheduler
     {
         public void StartSubmission();
-        public void SetDagNodes(List<DagNode> dagNodes);
+        public void AppendDagNodes(List<DagNode> dagNodes);
         public DagNode? RetrieveSubmissionReadyNode();
         public void RemoveNode(DagNode node);
         public DagNode? RetrieveNodeByNodeID(string nodeid);
+        void RemoveNodesWithJobId(string? jobID);
     }
 
     public class DagScheduler : IDagScheduler
@@ -24,11 +26,10 @@ namespace DagOrchestrator.Models
             _pythonComService = pythonComService;   
         }
 
-        public void SetDagNodes(List<DagNode> dagNodes)
+        public void AppendDagNodes(List<DagNode> dagNodes)
         {
-            DagNodes = dagNodes;
+            DagNodes.AddRange(dagNodes);
         }
-        //TODO - implement Submission logic
         public void StartSubmission()
         {
 
@@ -52,7 +53,7 @@ namespace DagOrchestrator.Models
                     }
                     var parameters = node.InputParameters?.Input ?? new List<InputParameter>();
                     var input_paths = parameters.Where(x => x.IsInputNode?.Value<bool>() ?? false).ToList();
-                    bool are_all_paths_occupied = input_paths.Select(x => File.Exists(x.ImageDir?.ToString())).All(x => x);
+                    bool are_all_paths_occupied = input_paths.Select(x => x.IsAssigned).All(x => x);
                     if (are_all_paths_occupied)
                     {
                         return node;
@@ -64,6 +65,11 @@ namespace DagOrchestrator.Models
         public DagNode? RetrieveNodeByNodeID(string id)
         {
             return DagNodes.First(x => x.NodeId.ToString() == id);
+        }
+
+        public void RemoveNodesWithJobId(string? jobID)
+        {
+            DagNodes.RemoveAll(x => x.JobID==jobID);
         }
     }
 }

@@ -9,6 +9,9 @@ namespace DagOrchestrator.Models
     {
         [JsonIgnore]
         private JObject? _jsonObject;
+        [JsonIgnore]
+        public bool IsAssigned = false;
+
 
         [JsonProperty("input_type")]
         public string? InputType { get; set; }
@@ -94,12 +97,26 @@ namespace DagOrchestrator.Models
 
         [JsonProperty("output_nodes")]
         public List<List<string>>? OutputNodes { get; set; }
+
+        [JsonIgnore]
+        public string? JobID { get; set; }
+
+        [JsonProperty("isinputnode")]
+        public bool? IsInputNode { get; set; }
+
+        [JsonProperty("isoutputnode")]
+        public bool? IsOutputNode { get; set; }
     }
 
     public class InputParametersContainer
     {
         [JsonProperty("node_id")]
         public Guid NodeId { get; set; }
+
+        [JsonProperty("job_id")]
+        public string? JobId { get; set; }
+
+
 
         [JsonProperty("input")]
         public List<InputParameter>? Input { get; set; }

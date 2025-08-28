@@ -6,7 +6,18 @@ class InputParams(BaseModel):
 
 
 class InputItem(BaseModel):
-    input_type: Literal["Image2D", "Volume3D", "MMFPath","numeric", "Scalar", "Categoric","Text","Image2DPath"]
+    input_type: Literal["Image2D", 
+                        "MeasurementElement",
+                        "Volume3D", 
+                        "MMFPath",
+                        "numeric", 
+                        "Scalar", 
+                        "Categoric",
+                        "Text",
+                        "Image2DPath",
+                        "AcquisitionName",
+                        "DetectorName",
+                        "JobID"]
     input_params: InputParams
 
 
@@ -15,4 +26,8 @@ class NodeInput(BaseModel):
     input: List[InputItem]
 
 
+class IoInput(BaseModel):
+    node_id: str
+    job_id: str
+    input: List[InputItem]
 

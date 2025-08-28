@@ -1,5 +1,6 @@
 import numpy as np 
 
+from app.core.measurements.measurementelements import WaitForTime
 from app.core.dag_types import *
 from app.decorators.node_decorator import node 
 from scipy.ndimage import gaussian_filter
@@ -7,6 +8,12 @@ import skimage as ski
 import tifffile
 
 
+@node(input=[Image2D], output=[MeasurementElement], params= 
+    {
+        "Parameters": []               
+    })
+async def set_wait_time(input_arr):
+    return WaitForTime(10)
 
 
 
@@ -52,6 +59,16 @@ async def image_arithmetic(input_arr1,input_arr2, input_option):
     return result
 
 
+@node(input=[Image2D], output=[Image2D], params= 
+    {
+        "Parameters": [ ]                     
+    })
+async def calculate_mean(data):
+    mean_all = np.mean(data)
+    print(mean_all)
+    return mean_all
+
+
 
 @node(input=[Image2D], output=[], params= 
     {
@@ -59,6 +76,15 @@ async def image_arithmetic(input_arr1,input_arr2, input_option):
     })
 async def write_tif_to_file(data):
     tifffile.imwrite('output2.tif', data)
+    return []
+
+
+@node(input=[Image2D], output=[Image2D], params= 
+    {
+        "Parameters": [ ]                     
+    })
+async def test_exception(data):
+    raise Exception("Unhandled exception from Python")
     return []
 
 

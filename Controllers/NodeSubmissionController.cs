@@ -1,10 +1,6 @@
 ﻿using DagOrchestrator.Models;
 using DagOrchestrator.Services;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using System.Diagnostics;
 
 namespace DagOrchestrator.Controllers
 {
@@ -13,36 +9,63 @@ namespace DagOrchestrator.Controllers
     public class NodeSubmissionController : ControllerBase
     {
         private readonly DagProcessingService _dagProcessor;
+        private readonly DagRegisterService _dagRegister;
 
-        public NodeSubmissionController(DagProcessingService dagProcessor) 
+        public NodeSubmissionController(DagProcessingService dagProcessor, DagRegisterService dagRegister)
         {
             _dagProcessor = dagProcessor;
+            _dagRegister = dagRegister;
         }
 
         /// <summary>
-        /// Submit a DAG containing various nodes and deserialize them into the DagNode object.
-        /// Starts the DAG processing
-        /// </summary>    
-        /// 
-        [HttpPost("submit_dag")]
-        public async Task<IActionResult> SubmitDagFromRequest([FromBody] JArray dag_nodes)
+        /// Submit multiple DAG definitions and store them in a register for further use.
+        /// </summary>
+        [HttpPost("set_dags")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public IActionResult SetDags([FromBody] List<DagSubmissionRequest> dagDefinitions)
         {
+            if (dagDefinitions == null || dagDefinitions.Count == 0)
+                return BadRequest("No DAG definitions provided.");
 
-            var sw = Stopwatch.StartNew();
+            var errors = new List<string>();
 
-            // System.Text.Json replacement for JObject.ToObject<List<T>>
-            var dagList = dag_nodes.ToObject<List<DagNode>>();
-
-
-            if (dagList != null)
+            foreach (var dag in dagDefinitions)
             {
-                _dagProcessor.SubmitDag(dagList);
-                sw.Stop();
+                if (string.IsNullOrWhiteSpace(dag.DagID) || dag.DagNodes == null || dag.DagNodes.Count == 0)
+                {
+                    errors.Add($"Invalid DAG: missing DagID or DagNodes.");
+                    continue;
+                }
 
-                //_dagScheduler.StartSubmission();
-                return Ok();
+                _dagRegister.CacheProcessingPipeline(dag.DagID, dag.DagNodes);
             }
-            return NotFound("Could not find a list of DAG nodes");
-        } 
+
+            if (errors.Count > 0)
+                return BadRequest(new { Message = "Some DAGs were invalid.", Errors = errors });
+
+            return Ok(new { Message = "All valid DAGs submitted successfully." });
+        }
+
+        /// <summary>
+        /// Submit a single DAG for processing.
+        /// </summary>
+        [HttpPost("submit_dag")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public IActionResult SubmitDag([FromBody] List<DagNode> dagNodes)
+        {
+            if (dagNodes == null || dagNodes.Count == 0)
+                return BadRequest("No DAG nodes provided or invalid format.");
+
+            _dagProcessor.SubmitDag(dagNodes);
+            return Ok(new { Message = "DAG submitted successfully." });
+        }
+    }
+
+    public class DagSubmissionRequest
+    {
+        public string DagID { get; set; }
+        public List<DagNode> DagNodes { get; set; }
     }
 }
