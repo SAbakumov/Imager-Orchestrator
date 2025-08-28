@@ -1,13 +1,22 @@
-FROM python:3.10
+FROM python:3.11
 
 WORKDIR /dag_orchestrator 
 
 COPY ./requirements.txt /dag_orchestrator/requirements.txt
 
-RUN pip install --no-cache-dir --upgrade -r /dag_orchestrator/requirements.txt
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libfreetype6-dev \
+    libpng-dev \
+    pkg-config \
+ && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir  -r /dag_orchestrator/requirements.txt
 
 COPY ./app /dag_orchestrator/app
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80"]
+COPY ./imagedata /dag_orchestrator/imagedata
 
-EXPOSE 80
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8400"]
+
+EXPOSE 8400

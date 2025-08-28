@@ -12,7 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 System.Net.ServicePointManager.Expect100Continue = false;
 
 // Add services to the container.
-builder.WebHost.UseKestrel();
+builder.WebHost.UseKestrel().UseUrls("http://0.0.0.0:5100"); ;
 builder.Services.AddControllers().AddNewtonsoftJson();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -36,7 +36,7 @@ builder.Services.AddSwaggerGen(options  =>
 
 builder.Services.AddHttpClient<PythonComService>(client =>
 {
-    client.BaseAddress = new Uri("http://127.0.0.1:8400");
+    client.BaseAddress = new Uri("http://host.docker.internal:8400");
 }).ConfigurePrimaryHttpMessageHandler(() =>
 {
     var handler = new HttpClientHandler();
