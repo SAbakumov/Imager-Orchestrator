@@ -6,6 +6,7 @@ using Microsoft.OpenApi.Models;
 using Newtonsoft;
 using System.Net;
 using System.Reflection;
+using StackExchange.Redis;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -36,13 +37,34 @@ builder.Services.AddSwaggerGen(options  =>
 
 builder.Services.AddHttpClient<PythonComService>(client =>
 {
-    client.BaseAddress = new Uri("http://host.docker.internal:8400");
+    //client.BaseAddress = new Uri("http://host.docker.internal:8400");
+    client.BaseAddress = new Uri("http://localhost:8400");
+
 }).ConfigurePrimaryHttpMessageHandler(() =>
 {
     var handler = new HttpClientHandler();
     handler.SslProtocols = System.Security.Authentication.SslProtocols.Tls13 | System.Security.Authentication.SslProtocols.Tls12;
     return handler;
 }); ;
+
+
+
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+{
+    var configuration = builder.Configuration.GetConnectionString("Redis");
+    return ConnectionMultiplexer.Connect(configuration);
+});
+
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration.GetConnectionString("Redis");
+    options.InstanceName = "ImageCache:";
+});
+
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 104857600; 
+});
 
 
 builder.Services.AddTransient<NodeProcessor>();

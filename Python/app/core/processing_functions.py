@@ -4,17 +4,41 @@ from app.core.measurements.measurementelements import WaitForTime
 from app.core.dag_types import *
 from app.decorators.node_decorator import node 
 from scipy.ndimage import gaussian_filter
+from app.core.user_classes.merge_channels import channel_merger
+
 import skimage as ski
 import tifffile
+import asyncio
+
+
+@node(input=[Image2D,Image2D], output=[MeasurementElement], params= 
+    {
+        "Parameters": [ ]                     
+    })
+def combine_channels(ch1, ch2):
+
+    channel_merger.set_channels(ch1,ch2)
+
+    return WaitForTime(10)
+
 
 
 @node(input=[Image2D], output=[MeasurementElement], params= 
     {
         "Parameters": []               
     })
-async def set_wait_time(input_arr):
+def set_wait_time(input_arr):
     return WaitForTime(10)
 
+
+@node(input=[], output=[], params= 
+    {
+        "Parameters": [
+        ]               
+    })
+def calc_best_position():
+
+    return 
 
 
 
@@ -26,8 +50,8 @@ async def set_wait_time(input_arr):
             },
         ]               
     })
-async def multiply(input_arr, input_scalar):
-    output_arr = await (input_arr*input_scalar)
+def multiply(input_arr, input_scalar):
+    output_arr = (input_arr*input_scalar)
     return output_arr
 
 
@@ -39,7 +63,7 @@ async def multiply(input_arr, input_scalar):
             }  ]    
                        
     })
-async def image_arithmetic(input_arr1,input_arr2, input_option):
+def image_arithmetic(input_arr1,input_arr2, input_option):
   
     img1 = np.array(input_arr1)
     img2 = np.array(input_arr2)
@@ -63,10 +87,14 @@ async def image_arithmetic(input_arr1,input_arr2, input_option):
     {
         "Parameters": [ ]                     
     })
-async def calculate_mean(data):
-    mean_all = np.mean(data)
-    print(mean_all)
+def calculate_mean(data):
+    # mean_all = np.mean(data)
+    mean_all = 10
+    print(10)
     return mean_all
+
+
+
 
 
 
@@ -74,7 +102,7 @@ async def calculate_mean(data):
     {
         "Parameters": [ ]                     
     })
-async def write_tif_to_file(data):
+def write_tif_to_file(data):
     tifffile.imwrite('output2.tif', data)
     return []
 
@@ -83,7 +111,7 @@ async def write_tif_to_file(data):
     {
         "Parameters": [ ]                     
     })
-async def test_exception(data):
+def test_exception(data):
     raise Exception("Unhandled exception from Python")
     return []
 
@@ -96,7 +124,7 @@ async def test_exception(data):
             },
          ]                     
     })
-async def read_tif(path):
+def read_tif(path):
     loader = TIFFStackLoader(path)
     stack = loader.load_stack()
     if stack.ndim == 3 and stack.shape[0] == 1:
@@ -104,6 +132,8 @@ async def read_tif(path):
     elif stack.ndim == 3:
         raise ValueError("Expected single 2D image, got multi-page TIFF")
     return stack
+
+
 
 
 @node(
@@ -124,7 +154,7 @@ async def read_tif(path):
         ]
     }
 )
-async def image_filter(image_array, selected_filter, sigma=1.0):
+def image_filter(image_array, selected_filter, sigma=1.0):
     img = np.array(image_array)
 
     match selected_filter:

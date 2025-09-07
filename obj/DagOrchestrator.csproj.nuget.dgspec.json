@@ -52,9 +52,19 @@
         "net8.0": {
           "targetAlias": "net8.0",
           "dependencies": {
+            "MessagePack": {
+              "target": "Package",
+              "version": "[3.1.4, )",
+              "versionCentrallyManaged": true
+            },
             "Microsoft.AspNetCore.Mvc.NewtonsoftJson": {
               "target": "Package",
               "version": "[8.0.19, )",
+              "versionCentrallyManaged": true
+            },
+            "Microsoft.Extensions.Caching.StackExchangeRedis": {
+              "target": "Package",
+              "version": "[9.0.8, )",
               "versionCentrallyManaged": true
             },
             "Microsoft.VisualStudio.Azure.Containers.Tools.Targets": {
@@ -67,6 +77,11 @@
               "version": "[13.0.3, )",
               "versionCentrallyManaged": true
             },
+            "StackExchange.Redis": {
+              "target": "Package",
+              "version": "[2.9.11, )",
+              "versionCentrallyManaged": true
+            },
             "Swashbuckle.AspNetCore": {
               "target": "Package",
               "version": "[6.6.2, )",
@@ -74,9 +89,12 @@
             }
           },
           "centralPackageVersions": {
+            "MessagePack": "3.1.4",
             "Microsoft.AspNetCore.Mvc.NewtonsoftJson": "8.0.19",
+            "Microsoft.Extensions.Caching.StackExchangeRedis": "9.0.8",
             "Microsoft.VisualStudio.Azure.Containers.Tools.Targets": "1.22.1-Preview.1",
             "Newtonsoft.Json": "13.0.3",
+            "StackExchange.Redis": "2.9.11",
             "Swashbuckle.AspNetCore": "6.6.2"
           },
           "imports": [

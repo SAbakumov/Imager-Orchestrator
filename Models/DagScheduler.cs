@@ -11,7 +11,9 @@ namespace DagOrchestrator.Models
         public DagNode? RetrieveSubmissionReadyNode();
         public void RemoveNode(DagNode node);
         public DagNode? RetrieveNodeByNodeID(string nodeid);
+
         void RemoveNodesWithJobId(string? jobID);
+        void SetCurrentJob(List<DagNode> dagNodes);
     }
 
     public class DagScheduler : IDagScheduler
@@ -70,6 +72,12 @@ namespace DagOrchestrator.Models
         public void RemoveNodesWithJobId(string? jobID)
         {
             DagNodes.RemoveAll(x => x.JobID==jobID);
+        }
+
+
+        public void SetCurrentJob(List<DagNode> dagNodes)
+        {
+            DagNodes = dagNodes;
         }
     }
 }

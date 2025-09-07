@@ -1,11 +1,12 @@
 ﻿using DagOrchestrator.Services;
 using Microsoft.AspNetCore.Mvc;
+using System.Threading.Tasks;
 
 namespace DagOrchestrator.Controllers
 {
 
     [ApiController]
-    [Route("jobsumission/{dag_id}")]
+    [Route("jobsubmission")]
     public class JobSubmissionController : Controller
     {
         private readonly JobSubmissionService _jobService;
@@ -21,42 +22,41 @@ namespace DagOrchestrator.Controllers
         }
 
 
-        [HttpPost("submit_job")]
-        public IActionResult SetData(string dag_id)
-        {
-            if(_jobService.IsJobForDagRunning(dag_id)) 
-            {
-                return BadRequest($"Job for ${dag_id} already running");
-            } 
-            else
-            {
-                _jobService.SubmitJob(dag_id);
-                return Ok();
-            }
-        }
-
-        [HttpPost("start")]
-        public IActionResult StartProcessing(string dag_id)
-        {
-            var dag = _dagRegister.RetrieveProcessingPipeline(dag_id);
-            foreach(var dagnode in dag)
-            {
-                dagnode.JobID = dag_id;
-                dagnode.InputParameters.JobId = dag_id;
-
-            }
-            _jobService.SetJobStatusRunning(dag_id);    
-            _dagProcessor.SubmitDag(dag);
-            return Ok();
-        }
 
         [HttpGet("get_job_result")]
-        public IActionResult GetJobOutput(string dag_id)
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetJobOutput([FromQuery] string dagid)
         {
-            var job = _jobService.GetJobResult(dag_id);
+            var cts = new CancellationTokenSource(TimeSpan.FromMinutes(20));
+
+            try
+            {
+                while (_jobService.HasJobsInQueue())
+                {
+                    await Task.Delay(500, cts.Token);
+                }
+
+            }
+            catch (TaskCanceledException)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, new
+                {
+                    status = "Failed to produce valid output on 20 minute timeout",
+                    output = ""
+                });
+            }
+            var job = _jobService.GetJobResult(dagid);
+
 
             if (job == null)
                 return NotFound(new { status = "NotFound", output = "" });
+
+            if (job.LazyNode != null)
+            {
+                job.JobOutput = await Task.Run(() => _dagProcessor.ExecuteSingleNode(job.LazyNode));
+                job.Status = JobStatus.Completed;
+            }
+
 
             switch (job.Status)
             {

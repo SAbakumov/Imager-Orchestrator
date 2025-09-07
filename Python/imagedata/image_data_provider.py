@@ -1,15 +1,16 @@
 import app
 import numpy as np
+import redis
+
+from app.core.imagecache.redis_image_cache import ImageCache
 
 
 class ImageDataProvider:
     def __init__(self):
-        self.image_data = {}  # {file_name: bytearray()}
-        self.imsizes    = {}
+        self.image_cache = ImageCache.cache
+        self.image_data = {}
 
-        self.max_image_index = 0
-        self.min_image_index = 0
-        self.image_val = 0
+ 
     def add_image_data(self, file_name: str, data: bytes, max_index:int, width:int, height:int):
         if file_name not in self.image_data:
             self.image_data[file_name] = []
@@ -19,10 +20,18 @@ class ImageDataProvider:
         self.imsizes[file_name] = tuple([width,height])
 
 
-    def concatenate_image_data(self, file_name):
-        arrays = [np.frombuffer(chunk, dtype=np.uint16) for chunk in self.image_data[file_name]]
-        stack_size = len(arrays)
-        width, height = self.imsizes[file_name]
-        # Concatenate them efficiently
-        self.image_data[file_name] = np.concatenate(arrays)
-        self.image_data[file_name] = np.reshape(self.image_data[file_name],shape=(stack_size, width, height))
+    def retrieve_image_data(self, file_name):
+        im_data = np.frombuffer(self.image_cache.get(file_name),dtype=np.uint16)
+
+        metadata =self.image_cache.hgetall(f"{file_name}_size")
+
+        width = int(metadata[b'nrows'])
+        height = int(metadata[b'ncols'])
+
+
+        self.image_data[file_name] = np.reshape(im_data,shape=(width, height))
+
+    def clear_all_image_data(self, process_id):
+        for image_key in self.image_data.keys():
+            if process_id in image_key:
+                self.image_data.pop(image_key)

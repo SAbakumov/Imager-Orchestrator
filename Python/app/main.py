@@ -1,7 +1,6 @@
 # main.py
 from fastapi import FastAPI, Request
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from app.routers.processing_router import router
 
 import uvicorn
@@ -13,6 +12,7 @@ import numpy as np
 import app.core.processing_functions
 import app.core.io_functions
 
+from app.core.user_classes.merge_channels import channel_merger
 from imagedata.image_data_handler import datarouter
 from imagedata.image_data_handler import image_provider
 
@@ -20,6 +20,10 @@ app = FastAPI()
 app.include_router(router, prefix="/api")
 app.include_router(datarouter, prefix="/imagedata")
 
+
+@app.get("/plot", response_class=HTMLResponse)
+def serve_plot():
+    return HTMLResponse(content=channel_merger.get_html())
 
 @app.get("/ping")
 async def ping():

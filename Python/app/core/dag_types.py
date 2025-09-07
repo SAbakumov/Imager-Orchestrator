@@ -1,5 +1,5 @@
 import numpy as np
-import os
+import os , io
 from abc import ABC, abstractmethod
 from typing import Any
 from pathlib import Path
@@ -8,6 +8,8 @@ from imagedata.image_data_handler import image_provider
 from app.utils.mmf_processor import MMFProcessor
 from app.utils.array_utils import NPYArrayIO
 from app.utils.tif_utils import TIFFStackLoader
+from app.core.imagecache.redis_image_cache import ImageCache
+from dataclasses import dataclass, field
 
 # -------------------------------
 # Base IO types
@@ -93,15 +95,24 @@ class Image2D(ArrayType):
     dtype: str = "float32"
     image_dir: str
     image_shape: list | None = None
+    image_cache: Any = None  # make it optional
+
+
+    model_config = {
+        "arbitrary_types_allowed": True
+    }
 
     def __init__(self, image_dir: str):
         super().__init__(image_dir=image_dir)
         prefix = image_dir.split("::")[0]
 
-        if prefix == "fromprovider":
-            self.image_dir = image_dir
-        else:
-            self.image_dir = Path(self.image_dir)
+        # if prefix == "fromprovider":
+        self.image_dir = image_dir
+        # else:
+        #     self.image_dir = Path(self.image_dir)
+
+        self.image_cache = ImageCache.cache
+
 
 
     def load_data(self) -> np.ndarray:
@@ -111,9 +122,9 @@ class Image2D(ArrayType):
             if prefix == "fromprovider":
                 return image_provider.image_data[self.image_dir.split("::")[1]]
             
-        if not self.image_dir.exists():
-            raise FileNotFoundError(f"{self.image_dir} does not exist.")
-        if self.image_dir.suffix.lower() in [".tif", ".tiff"]:
+        # if not self.image_dir.exists():
+        #     raise FileNotFoundError(f"{self.image_dir} does not exist.")
+        if self.image_dir.split('.')[-1] in [".tif", ".tiff"]:
             loader = TIFFStackLoader(self.image_dir)
             stack = loader.load_stack()
             if stack.ndim == 3 and stack.shape[0] == 1:
@@ -121,8 +132,10 @@ class Image2D(ArrayType):
             elif stack.ndim == 3:
                 raise ValueError("Expected single 2D image, got multi-page TIFF")
             return stack
-        elif self.image_dir.suffix.lower() == ".npy":
-            return np.load(self.image_dir)
+        elif self.image_dir.split('.')[-1] == "npy":
+            buf2 = io.BytesIO(self.image_cache.get(self.image_dir))
+            image = np.load(buf2)
+            return image
         else:
             raise ValueError(f"Unsupported file type: {self.image_dir.suffix}")
 
@@ -132,9 +145,15 @@ class Image2D(ArrayType):
 
     @staticmethod
     def set_result(image: np.ndarray, name: str) -> None:
-        out_path = os.path.join(os.path.abspath("temp_data"),f"{name}.npy")
-        npy_io = NPYArrayIO(out_path)
-        npy_io.save(image)
+        # out_path = os.path.join(os.path.abspath("temp_data"),f"{name}.npy")
+        out_path =  f"{name}.npy"
+
+        buf = io.BytesIO()
+        np.save(buf, image)
+        ImageCache.cache.set(out_path, buf.getvalue())
+
+        # npy_io = NPYArrayIO(out_path)
+        # npy_io.save(image)
         return {"datatype": "Image2D", "image_dir": out_path }
 
 

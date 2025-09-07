@@ -1,9 +1,6 @@
 ﻿using DagOrchestrator.Models;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using System.Collections.Concurrent;
-using System.Diagnostics;
-using System.Security.Principal;
+
+using StackExchange.Redis;
 
 namespace DagOrchestrator.Services
 {
@@ -19,8 +16,14 @@ namespace DagOrchestrator.Services
     {
         private List<JobDefinition> RunningJobs = new();
 
-        public JobSubmissionService()
+        private readonly PythonComService _pythonComService;
+        public Dictionary<string, JobDefinition> DagResults = new();
+        private IDatabase _db;
+
+        public JobSubmissionService(PythonComService pythonComService, IConnectionMultiplexer cache)
         {
+            _pythonComService = pythonComService;
+            _db = cache.GetDatabase();
         }
 
         public bool IsJobForDagRunning(string job)
@@ -28,9 +31,9 @@ namespace DagOrchestrator.Services
             return RunningJobs.Select(x => x.JobID).Contains(job);
         }
 
-        public void SubmitJob(string job)
+        public void SubmitJob(JobDefinition job)
         {
-            RunningJobs.Add(new JobDefinition(job));
+            RunningJobs.Add(job);
         }
 
         internal void SetJobStatusFailed(string? jobID, string image_response)
@@ -38,9 +41,12 @@ namespace DagOrchestrator.Services
             foreach (var item in RunningJobs.Where(x => jobID == x.JobID))
             {
                 item.Status = JobStatus.Failed;
+                _pythonComService.ClearData(jobID);
                 item.JobOutput = image_response;    
             }
-            ;
+            var job = RunningJobs.Where(x => jobID == x.JobID).FirstOrDefault();
+            RunningJobs.Remove(job);
+
         }
 
         internal void SetJobStatusRunning(string jobID)
@@ -48,7 +54,9 @@ namespace DagOrchestrator.Services
             foreach (var item in RunningJobs.Where(x => jobID == x.JobID))
             {
                 item.Status = JobStatus.Running;
+                _pythonComService.ClearData(jobID);
             }
+
         }
 
         internal void SetJobStatusCompleted(string jobID)
@@ -57,6 +65,9 @@ namespace DagOrchestrator.Services
             {
                 item.Status = JobStatus.Completed;
             }
+            var job = RunningJobs.Where(x => jobID == x.JobID).FirstOrDefault();
+            RunningJobs.Remove(job);
+
         }
 
         internal void SetJobResult(string jobID, string jobResult)
@@ -64,13 +75,36 @@ namespace DagOrchestrator.Services
             foreach (var item in RunningJobs.Where(x => jobID == x.JobID))
             {
                 item.JobOutput = jobResult;
+                if(!DagResults.TryAdd(item.DagID, item ))
+                {
+                    DagResults[item.DagID] = item;
+                }
             }
         }
 
+
+
         internal JobDefinition GetJobResult(string jobID)
         {
-            var job = RunningJobs.Where(x => jobID == x.JobID).FirstOrDefault();
+           return DagResults[jobID];
+        }
+
+        internal JobDefinition DequeueJob()
+        {
+            var job = RunningJobs.FirstOrDefault();
             return job;
+        }
+
+        internal void SetLazyNodes(DagNode node)
+        {
+            var job = RunningJobs.Where(x => node.JobID== x.JobID).FirstOrDefault();
+            job.LazyNode = node;
+            RunningJobs.Remove(job);
+        }
+
+        internal bool HasJobsInQueue()
+        {
+            return RunningJobs.Count() > 0;
         }
     }
 
@@ -78,14 +112,19 @@ namespace DagOrchestrator.Services
 
     public class JobDefinition
     {
+        public string DagID { get; set; }
         public string JobID { get; set; }
+        public List<DagNode> Nodes { get; set; }
         public string JobOutput { get; set; }
         public JobStatus Status;
+        public DagNode LazyNode { get; set; }
 
-        public JobDefinition(string job)
+        public JobDefinition(string job,string dagid, List<DagNode> nodes)
         {
             JobID = job;
+            DagID = dagid;
             Status = JobStatus.Pending;
+            Nodes = nodes;
         }
     }
 }

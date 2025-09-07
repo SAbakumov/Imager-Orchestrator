@@ -16,7 +16,7 @@ def node(input: Optional[List] = None, output: Optional[List[IOType]] = None, pa
                 for input_val in node_input.input
             ]
 
-            results = await func(*argvals)
+            results = func(*argvals)
             if not isinstance(results, tuple):
                 results = [results]
             return [
@@ -42,7 +42,7 @@ def node(input: Optional[List] = None, output: Optional[List[IOType]] = None, pa
 
 
 def ionode(input: Optional[List] = None, output: Optional[List[IOType]] = None, params: Optional[dict] = None,
-           isinputnode = False, isoutputnode = False ):
+           isinputnode = False, isoutputnode = False, islazynode = False ):
     def decorator(func):
         async def endpoint(request: Request):
             val = await request.json()
@@ -53,11 +53,11 @@ def ionode(input: Optional[List] = None, output: Optional[List[IOType]] = None, 
                 for input_val in node_input.input
             ]
 
-            results = await func(node_input.job_id, *argvals)
+            results = func(node_input.job_id, *argvals)
             if(type(results)== ImageProviderOutput):
                 return [{"datatype": "Image2D", "image_dir": results.set_jobid(node_input.job_id)}]
             if(type(results)== ElementProviderOutput):
-                return results.element    
+                return results.element  
             
         async def endpoint_info():
             return {
@@ -65,9 +65,16 @@ def ionode(input: Optional[List] = None, output: Optional[List[IOType]] = None, 
                 "Output": [x.serialize() for x in output or []],
                 "Parameters": [param["type"].serialize() for param in (params or {}).get("Parameters", [])],
                 "IsNodeInput": isinputnode,
-                "IsNodeOutput": isoutputnode 
+                "IsNodeOutput": isoutputnode,
+                "IsLazyNode": islazynode
             }
 
+        if isinputnode and islazynode:
+            raise Exception("IO Node can not be of input and lazy type")
+        
+        if not isinputnode and not isoutputnode:
+            raise Exception("IO Node must be either output or input type")
+        
         router.add_api_route(f'/io/{func.__name__}', endpoint=endpoint, methods=["POST"])
         router.add_api_route(f'/io/{func.__name__}/get_info', endpoint=endpoint_info, methods=["GET"])
 

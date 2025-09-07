@@ -5,9 +5,25 @@ from app.decorators.node_decorator import ionode
 from app.core.io_provider import ImageProviderOutput, ElementProviderOutput
 from imagedata.image_data_handler import image_provider
 from scipy.ndimage import gaussian_filter
+from app.core.user_classes.merge_channels import channel_merger
+
+
 import skimage as ski
 import tifffile
 
+
+@ionode(input=[MeasurementElement], output=[], params= 
+    {
+        "Parameters": [] ,
+    },
+    islazynode= False,
+    isinputnode = False,
+    isoutputnode = True                   
+    )
+
+def plot_channels(jobid,measurement_element):
+    channel_merger.get_html()
+    return  ElementProviderOutput(measurement_element)
 
 
 
@@ -26,9 +42,11 @@ import tifffile
     isinputnode = True,
     isoutputnode = False, 
     )
-async def live_input(jobid, acq_name, det_name):
-    image_provider.concatenate_image_data(f'{jobid}_{acq_name}_{det_name}')
+def live_input(jobid, acq_name, det_name):
+    image_provider.retrieve_image_data(f'{jobid}_{acq_name}_{det_name}')
     return  ImageProviderOutput(f'{acq_name}_{det_name}')
+
+
 
 
 @ionode(input=[MeasurementElement], output=[], params= 
@@ -39,5 +57,5 @@ async def live_input(jobid, acq_name, det_name):
     isinputnode = False,
     isoutputnode = True,
     )
-async def measurement_output(jobid, measurement_element):
+def measurement_output(jobid, measurement_element):
     return  ElementProviderOutput(measurement_element)

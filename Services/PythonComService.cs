@@ -1,5 +1,7 @@
-﻿using Microsoft.AspNetCore.Http.HttpResults;
+﻿using DagOrchestrator.Models;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
 using System.Diagnostics;
 using System.Text;
 using static System.Runtime.InteropServices.JavaScript.JSType;
@@ -38,6 +40,59 @@ namespace DagOrchestrator.Services
             return response;
         }
 
+        internal async Task<string> ClearData(string? jobID)
+        {
+            string response = await _httpClient.GetStringAsync($"/imagedata/clear_all_data?process_id={jobID}");
+            return response;
+        }
 
+        internal async Task<string> SendData(MessagePackData data)
+        {
+            var tiffMeta = new TiffPlaneMetadata
+            {
+                PositionX = data.metadata.stageposition.x,
+                PositionY = data.metadata.stageposition.y,
+                PositionZ = data.metadata.stageposition.z,
+                AcquisitionName = data.metadata.acquisitiontype,
+                DetectorName = data.data.detectorname,
+                Width = (uint)data.data.ncols,
+                Height = (uint)data.data.nrows,
+                TimePoint = data.data.timestamp
+            };
+
+            using var byteContent = new ByteArrayContent(data.data.imagedata);
+            byteContent.Headers.ContentType =
+                new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+
+
+
+            //string response = await _httpClient.GetStringAsync($"/imagedata/clear_all_data?process_id={jobID}");
+            var response = _httpClient.PostAsync(
+                $"imagedata/set_data?" +
+                $"process_id=abc&" +
+                $"acqname={tiffMeta.AcquisitionName}&" +
+                $"detname={tiffMeta.DetectorName}&" +
+                $"detindex={data.index}&" +
+                $"width={tiffMeta.Width}&" +
+                $"height={tiffMeta.Height}",
+                byteContent
+                ).GetAwaiter().GetResult();
+
+
+
+            return response.ToString();
+        }
+    }
+
+    internal class TiffPlaneMetadata
+    {
+        public float PositionX { get; set; }
+        public float PositionY { get; set; }
+        public float PositionZ { get; set; }
+        public string AcquisitionName { get; set; }
+        public string DetectorName { get; set; }
+        public uint Width { get; set; }
+        public uint Height { get; set; }
+        public float TimePoint { get; set; }
     }
 }
