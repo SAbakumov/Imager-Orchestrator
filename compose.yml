@@ -1,0 +1,28 @@
+﻿services:
+  python:
+    build: ./Python
+    ports:
+      - "8400:8400"
+      - "8080:8080"
+    networks: 
+      - orchestrator 
+  redis:
+    image: "redis:8.0.3"
+    ports: 
+      - "6379:6379"
+    networks: 
+      - orchestrator
+
+      
+  orchestrator:
+    build: . 
+    ports: 
+      - "5100:5100"
+    networks:
+      - orchestrator
+
+
+
+networks:
+   orchestrator:
+

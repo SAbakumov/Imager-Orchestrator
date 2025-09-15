@@ -37,8 +37,8 @@ builder.Services.AddSwaggerGen(options  =>
 
 builder.Services.AddHttpClient<PythonComService>(client =>
 {
-    //client.BaseAddress = new Uri("http://host.docker.internal:8400");
-    client.BaseAddress = new Uri("http://localhost:8400");
+    client.BaseAddress = new Uri("http://host.docker.internal:8400");
+    //client.BaseAddress = new Uri("http://localhost:8400");
 
 }).ConfigurePrimaryHttpMessageHandler(() =>
 {

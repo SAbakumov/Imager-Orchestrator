@@ -1,12 +1,15 @@
 ﻿using DagOrchestrator.Services;
 using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json.Linq;
+using StackExchange.Redis;
 using System.Threading.Tasks;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace DagOrchestrator.Controllers
 {
 
     [ApiController]
-    [Route("jobsubmission")]
+    [Route("decisions")]
     public class JobSubmissionController : Controller
     {
         private readonly JobSubmissionService _jobService;
@@ -19,13 +22,16 @@ namespace DagOrchestrator.Controllers
             _jobService = jobService;  
             _dagRegister = dagRegister; 
             _dagProcessor = dagProcessor;
+
         }
 
 
 
-        [HttpGet("get_job_result")]
+        [HttpGet("get_decision/{decisiontype}")]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> GetJobOutput([FromQuery] string dagid)
+        public async Task<IActionResult> GetJobOutput(
+            string decisiontype,        
+            [FromQuery] string dagid)
         {
             var cts = new CancellationTokenSource(TimeSpan.FromMinutes(20));
 
@@ -49,23 +55,36 @@ namespace DagOrchestrator.Controllers
 
 
             if (job == null)
-                return NotFound(new { status = "NotFound", output = "" });
+                return NotFound();
 
             if (job.LazyNode != null)
             {
-                job.JobOutput = await Task.Run(() => _dagProcessor.ExecuteSingleNode(job.LazyNode));
+                var response = await Task.Run(() => _dagProcessor.ExecuteSingleNode(job.LazyNode));
+                job.JobOutput = JObject.Parse(response);
                 job.Status = JobStatus.Completed;
+            }
+
+
+            if (job.JobOutput.TryGetValue("type", out var jobdecisiontype))
+            {
+                var string_jobdecisiontype = jobdecisiontype.ToString(Newtonsoft.Json.Formatting.None).Trim('"');
+                if (string_jobdecisiontype != decisiontype)
+                {
+                    return BadRequest(new { type = "status", status = "error", 
+                        what = $"requested decision type {decisiontype} does not match job return type {jobdecisiontype}" });
+                }
+            }
+            else
+            {
+                return StatusCode(500, new { type = "status", status = "error",
+                    what = "decision type could not be inferred from job output" });
             }
 
 
             switch (job.Status)
             {
                 case JobStatus.Completed:
-                    return Ok(new
-                    {
-                        status = job.Status.ToString(),
-                        output = job.JobOutput
-                    });
+                    return Ok(job.JobOutput);
 
                 case JobStatus.Running:
                 case JobStatus.Pending:
@@ -76,10 +95,11 @@ namespace DagOrchestrator.Controllers
                     });
 
                 case JobStatus.Failed:
-                    return StatusCode(StatusCodes.Status500InternalServerError, new
+                    return StatusCode(500, new
                     {
-                        status = job.Status.ToString(),
-                        output = ""
+                        type = "status",
+                        status = "error",
+                        what = $"job with DagID {dagid} failed."
                     });
 
                 default:

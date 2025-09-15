@@ -70,6 +70,8 @@ namespace DagOrchestrator.Models
                     inputJsonParams.Remove("image_dir");
                 else
                     inputJsonParams["image_dir"] = value;
+                InputParams["input_json_params"]["image_dir"] = value;
+                    
             }
         }
 

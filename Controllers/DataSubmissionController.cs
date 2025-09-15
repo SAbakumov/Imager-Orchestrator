@@ -1,18 +1,14 @@
 ﻿using DagOrchestrator.Models;
 using DagOrchestrator.Services;
 using MessagePack;
-using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection.Metadata;
-using static System.Net.Mime.MediaTypeNames;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace DagOrchestrator.Controllers
 {
@@ -21,7 +17,7 @@ namespace DagOrchestrator.Controllers
     public class DataSubmissionController : Controller
     {
         private readonly DagRegisterService _dagRegister;
-        private readonly IConnectionMultiplexer _imageCache;
+        private readonly IConnectionMultiplexer _redisImageCache;
         private readonly IDatabase _db;
         private readonly PythonComService _pythonComService;
         private readonly JobSubmissionService _jobSubmissionService;
@@ -30,8 +26,8 @@ namespace DagOrchestrator.Controllers
 
         public DataSubmissionController( DagRegisterService dagRegister, IConnectionMultiplexer cache,PythonComService pythonComService, JobSubmissionService jobService)
         {
-            _imageCache = cache;
-            _db = _imageCache.GetDatabase();    
+            _redisImageCache = cache;
+            _db = _redisImageCache.GetDatabase();    
             _dagRegister = dagRegister;
             _pythonComService = pythonComService;
             _jobSubmissionService = jobService;
@@ -90,40 +86,85 @@ namespace DagOrchestrator.Controllers
 
             foreach (var image in deserializedMessages)
             {
-                ReadOnlyMemory<byte> mem = image.data.imagedata;
 
-                tasks.Add(batch.StringSetAsync($"{jobid}_{image.metadata.acquisitiontype}_{image.data.detectorname}", mem));
+                ReadOnlyMemory<byte> mem = image.message.data.imagedata;
 
-                var hashKey = $"{jobid}_{image.metadata.acquisitiontype}_{image.data.detectorname}_size";
-                var entries = new HashEntry[]
+                tasks.Add(batch.StringSetAsync($"{jobid}_{image.message.metadata.acquisitiontype}_{image.message.data.detectorname}", mem));
+
+                var hashKeySize = $"{jobid}_{image.message.metadata.acquisitiontype}_{image.message.data.detectorname}_size";
+                var entriesSize = new HashEntry[]
                 {
-                new("nrows", image.data.nrows),
-                new("ncols", image.data.ncols)
+                new("nrows", image.message.data.nrows),
+                new("ncols", image.message.data.ncols)
                 };
-                tasks.Add(batch.HashSetAsync(hashKey, entries));
+                tasks.Add(batch.HashSetAsync(hashKeySize, entriesSize));
+
+                var hashKeyPosition = $"{jobid}_{image.message.metadata.acquisitiontype}_{image.message.data.detectorname}_position";
+                var entriesPosition = new HashEntry[]
+                {
+                new("x", image.message.metadata.stageposition.x),
+                new("y", image.message.metadata.stageposition.y),
+                new("z", image.message.metadata.stageposition.z),
+                new("usinghardwareautofocus", image.message.metadata.stageposition.usinghardwareautofocus),
+                new("offset", image.message.metadata.stageposition.hardwareautofocusoffset)
+
+                };
+                tasks.Add(batch.HashSetAsync(hashKeyPosition, entriesPosition));
+
             }
 
             batch.Execute();
 
             Task.WhenAll(tasks).Wait();
 
-            var dag = _dagRegister.RetrieveProcessingPipeline(DagId);
 
-            if (dag != null)
+
+            foreach (var image in deserializedMessages)
             {
-                var copied_dag = dag.Select(x => x.DeepCopy()).ToList();
-
-                foreach (var dagnode in dag)
+                if(_jobSubmissionService.HasPendingPipeline(DagId, image.message.metadata.detectionindex) is JobDefinition pending_job)
                 {
-                    dagnode.JobID = jobid;
-                    dagnode.InputParameters.JobId = jobid;
-
+                    pending_job.ReceivedImages++;
+                    if(pending_job.ReceivedImages == pending_job.MaxImages)
+                    {
+                        
+                        _jobSubmissionService.SubmitJob(pending_job);
+                        _jobSubmissionService.RemovePendingJob(pending_job);
+                    }
                 }
+                else
+                {
+                    var dag = _dagRegister.RetrieveProcessingPipeline(DagId);
+
+                    if (dag != null)
+                    {
+                        var copied_dag = dag.Select(x => x.DeepCopy()).ToList();
+
+                        foreach (var dagnode in copied_dag)
+                        {
+                            dagnode.JobID = jobid;
+                            dagnode.InputParameters.JobId = jobid;
+
+                        }
+
+
+                        var new_pending_job = new JobDefinition(jobid, DagId, image.message.metadata.detectionindex,
+                            image.message.metadata.nimageswithdetectionindex, copied_dag);
+
+                        new_pending_job.ReceivedImages++;
+                        if (new_pending_job.ReceivedImages == new_pending_job.MaxImages)
+                        {
+
+                            _jobSubmissionService.SubmitJob(new_pending_job);
+                        }
+                        else
+                        {
+                            _jobSubmissionService.AddPendingJob(new_pending_job);
+                        }
+                    }
+                }
+            
             }
-
-
-            _jobSubmissionService.SubmitJob(new JobDefinition(jobid,DagId, dag));
-            return Ok(new { Message = $"{{received : {validLength} }}" });
+            return Ok(new { type = "status", status = "success" });
         }
     }
 }

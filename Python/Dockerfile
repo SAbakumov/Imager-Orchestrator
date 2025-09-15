@@ -1,4 +1,5 @@
-FROM python:3.11
+FROM python:3.11 
+ 
 
 WORKDIR /dag_orchestrator 
 
@@ -11,12 +12,14 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
  && rm -rf /var/lib/apt/lists/*
 
+RUN curl -fsSL https://code-server.dev/install.sh | sh
+
 RUN pip install --no-cache-dir  -r /dag_orchestrator/requirements.txt
 
 COPY ./app /dag_orchestrator/app
 
 COPY ./imagedata /dag_orchestrator/imagedata
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8400"]
+CMD ["sh", "-c", "code-server --bind-addr 0.0.0.0:8080 --auth none  & uvicorn  app.main:app --host 0.0.0.0 --port 8400 --reload"]
 
-EXPOSE 8400
+EXPOSE 8400 8080

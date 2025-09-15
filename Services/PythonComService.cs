@@ -50,17 +50,17 @@ namespace DagOrchestrator.Services
         {
             var tiffMeta = new TiffPlaneMetadata
             {
-                PositionX = data.metadata.stageposition.x,
-                PositionY = data.metadata.stageposition.y,
-                PositionZ = data.metadata.stageposition.z,
-                AcquisitionName = data.metadata.acquisitiontype,
-                DetectorName = data.data.detectorname,
-                Width = (uint)data.data.ncols,
-                Height = (uint)data.data.nrows,
-                TimePoint = data.data.timestamp
+                PositionX = data.message.metadata.stageposition.x,
+                PositionY = data.message.metadata.stageposition.y,
+                PositionZ = data.message.metadata.stageposition.z,
+                AcquisitionName = data.message.metadata.acquisitiontype,
+                DetectorName = data.message.data.detectorname,
+                Width = (uint)data.message.data.ncols,
+                Height = (uint)data.message.data.nrows,
+                TimePoint = data.message.data.timestamp
             };
 
-            using var byteContent = new ByteArrayContent(data.data.imagedata);
+            using var byteContent = new ByteArrayContent(data.message.data.imagedata);
             byteContent.Headers.ContentType =
                 new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
 

@@ -6,14 +6,26 @@ namespace DagOrchestrator.Models
     {
     }
 
+
     [MessagePackObject]
     public class MessagePackData
     {
-        [Key("data")]
-        public MessagePackImageData data { get; set; }
+
 
         [Key("index")]
         public int index { get; set; }
+
+        [Key("message")]
+        public MessagePackMessage message { get; set; }
+
+
+    }
+
+    [MessagePackObject]
+    public class MessagePackMessage
+    {
+        [Key("data")]
+        public MessagePackImageData data { get; set; }
 
         [Key("metadata")]
         public ImageMetadata metadata { get; set; }
@@ -50,8 +62,15 @@ namespace DagOrchestrator.Models
         [Key("acquisitiontype")]
         public string acquisitiontype { get; set; }
 
+        [Key("detectionindex")]
+        public int detectionindex { get; set; }
+
+        [Key("nimageswithdetectionindex")]
+        public int nimageswithdetectionindex { get; set; }
+
         [Key("stageposition")]
         public MessagePackStagePosition stageposition { get; set; }
+
     }
 
     [MessagePackObject]

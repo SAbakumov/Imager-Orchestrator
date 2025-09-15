@@ -1,5 +1,5 @@
 ﻿using DagOrchestrator.Models;
-
+using Newtonsoft.Json.Linq;
 using StackExchange.Redis;
 
 namespace DagOrchestrator.Services
@@ -15,6 +15,7 @@ namespace DagOrchestrator.Services
     public class JobSubmissionService
     {
         private List<JobDefinition> RunningJobs = new();
+        private List<JobDefinition> PendingJobs = new();
 
         private readonly PythonComService _pythonComService;
         public Dictionary<string, JobDefinition> DagResults = new();
@@ -33,6 +34,7 @@ namespace DagOrchestrator.Services
 
         public void SubmitJob(JobDefinition job)
         {
+            job.Status = JobStatus.Running;
             RunningJobs.Add(job);
         }
 
@@ -42,7 +44,8 @@ namespace DagOrchestrator.Services
             {
                 item.Status = JobStatus.Failed;
                 _pythonComService.ClearData(jobID);
-                item.JobOutput = image_response;    
+
+                item.JobOutput = JObject.Parse( image_response );    
             }
             var job = RunningJobs.Where(x => jobID == x.JobID).FirstOrDefault();
             RunningJobs.Remove(job);
@@ -74,7 +77,7 @@ namespace DagOrchestrator.Services
         {
             foreach (var item in RunningJobs.Where(x => jobID == x.JobID))
             {
-                item.JobOutput = jobResult;
+                item.JobOutput = JObject.Parse(jobResult);
                 if(!DagResults.TryAdd(item.DagID, item ))
                 {
                     DagResults[item.DagID] = item;
@@ -106,6 +109,21 @@ namespace DagOrchestrator.Services
         {
             return RunningJobs.Count() > 0;
         }
+
+        internal JobDefinition? HasPendingPipeline(string dagId, int detectionindex)
+        {
+            return PendingJobs.FirstOrDefault(x => x.DagID == dagId && x.DetectionIndex == detectionindex);
+        }
+
+        internal void RemovePendingJob(JobDefinition pending_job)
+        {
+            PendingJobs.Remove(pending_job);
+        }
+
+        internal void AddPendingJob(JobDefinition new_pending_job)
+        {
+            PendingJobs.Add(new_pending_job);
+        }
     }
 
 
@@ -114,15 +132,20 @@ namespace DagOrchestrator.Services
     {
         public string DagID { get; set; }
         public string JobID { get; set; }
+        public int DetectionIndex { get; set; }
+        public int ReceivedImages { get; set; } = 0;
+        public int MaxImages { get; set; } = 0;
         public List<DagNode> Nodes { get; set; }
-        public string JobOutput { get; set; }
+        public JObject JobOutput { get; set; }
         public JobStatus Status;
         public DagNode LazyNode { get; set; }
 
-        public JobDefinition(string job,string dagid, List<DagNode> nodes)
+        public JobDefinition(string job,string dagid, int detectionindex, int nimageswithdetectionindex, List<DagNode> nodes)
         {
             JobID = job;
             DagID = dagid;
+            DetectionIndex = detectionindex;
+            MaxImages = nimageswithdetectionindex;  
             Status = JobStatus.Pending;
             Nodes = nodes;
         }

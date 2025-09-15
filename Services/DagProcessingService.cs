@@ -115,17 +115,25 @@ namespace DagOrchestrator.Services
                 }
                 else
                 {
-                    await Task.Delay(500, stoppingToken); // wait before next check
+                    no_job_running = true;
+                    await Task.Delay(10, stoppingToken); // wait before next check
                 }
             }
         }
 
         private void HandleCompletedOutputNode(DagNode node, string imageResponse)
         {
-            _jobSubmissionService.SetJobResult(node.JobID, imageResponse);
-            _jobSubmissionService.SetJobStatusCompleted(node.JobID);
-            _dagScheduler.RemoveNodesWithJobId(node.JobID);
-            no_job_running = true;
+            try
+            {
+                _jobSubmissionService.SetJobResult(node.JobID, imageResponse);
+                _jobSubmissionService.SetJobStatusCompleted(node.JobID);
+                _dagScheduler.RemoveNodesWithJobId(node.JobID);
+                no_job_running = true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
         }
 
         private void HandleIntermediateNode(DagNode node, string imageResponse)
@@ -163,7 +171,7 @@ namespace DagOrchestrator.Services
                             item.ImageDir = imageOutputParams[i] switch
                             {
                                 ImageResultOutput imageOutput => imageOutput.image_dir,
-                                ElementResultOutput elementOutput => elementOutput.elementproperties.ToString(Formatting.None),
+                                ElementResultOutput elementOutput => elementOutput.decision.ToString(Formatting.None),
                                 _ => item.ImageDir
                             };
 
@@ -201,6 +209,6 @@ namespace DagOrchestrator.Services
     public class ElementResultOutput : PythonOutput
     {
         public override string datatype { get; set; }
-        public JObject elementproperties { get; set; }
+        public JObject decision { get; set; }
     }
 }

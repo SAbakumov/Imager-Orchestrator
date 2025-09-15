@@ -6,7 +6,7 @@ from app.core.io_provider import ImageProviderOutput, ElementProviderOutput
 from imagedata.image_data_handler import image_provider
 from scipy.ndimage import gaussian_filter
 from app.core.user_classes.merge_channels import channel_merger
-
+from app.core.measurements.measurementelements import *
 
 import skimage as ski
 import tifffile
@@ -59,3 +59,35 @@ def live_input(jobid, acq_name, det_name):
     )
 def measurement_output(jobid, measurement_element):
     return  ElementProviderOutput(measurement_element)
+
+
+@ionode(input=[Image2D], output=[], params= 
+    {
+        "Parameters": []               
+    },
+    isinputnode = False,
+    isoutputnode = True,
+    )
+def wait(jobid, image):
+
+    WaitElement =  WaitForTime(10)
+    return  ElementProviderOutput(WaitElement)
+
+
+@ionode(input=[Image2D], output=[], params= 
+    {
+        "Parameters": [
+            {
+                "type": Scalar(10, "NTotal")
+            }
+        ]               
+    },
+    isinputnode = False,
+    isoutputnode = True,
+    islazynode = True,
+    )
+def dotimes(jobid, image, num_total):
+
+    dotimes_element =  DoTimes(ntotal=int(num_total))
+    
+    return  ElementProviderOutput(dotimes_element)

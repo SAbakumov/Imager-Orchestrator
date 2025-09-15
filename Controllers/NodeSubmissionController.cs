@@ -1,6 +1,7 @@
 ﻿using DagOrchestrator.Models;
 using DagOrchestrator.Services;
 using Microsoft.AspNetCore.Mvc;
+using StackExchange.Redis;
 
 namespace DagOrchestrator.Controllers
 {
@@ -11,10 +12,14 @@ namespace DagOrchestrator.Controllers
         private readonly DagProcessingService _dagProcessor;
         private readonly DagRegisterService _dagRegister;
 
-        public NodeSubmissionController(DagProcessingService dagProcessor, DagRegisterService dagRegister)
+        public NodeSubmissionController(DagProcessingService dagProcessor, IConnectionMultiplexer rediscache, DagRegisterService dagRegister)
         {
             _dagProcessor = dagProcessor;
             _dagRegister = dagRegister;
+
+            var server = rediscache.GetServer("dagorchestrator-redis-1", 6379);
+            // Whenever new experiment run starts, we flush the DB to prevent uncleared data from interfering.
+            server.FlushDatabase();
         }
 
         /// <summary>
@@ -25,6 +30,7 @@ namespace DagOrchestrator.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public IActionResult SetDags([FromBody] List<DagSubmissionRequest> dagDefinitions)
         {
+            _dagRegister.ClearCachedProcessingPipelines();
             if (dagDefinitions == null || dagDefinitions.Count == 0)
                 return BadRequest("No DAG definitions provided.");
 
@@ -42,9 +48,9 @@ namespace DagOrchestrator.Controllers
             }
 
             if (errors.Count > 0)
-                return BadRequest(new { Message = "Some DAGs were invalid.", Errors = errors });
+                return BadRequest(new { type = "status", status = "error", what =  errors });
 
-            return Ok(new { Message = "All valid DAGs submitted successfully." });
+            return Ok(new { type = "status", status = "success" });
         }
 
         /// <summary>

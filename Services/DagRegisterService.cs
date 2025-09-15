@@ -21,125 +21,19 @@ namespace DagOrchestrator.Services
             ProcessingPipelines.TryAdd(id, dag_nodes);
         }
 
-        public List<DagNode> RetrieveProcessingPipeline(string id)
+        public List<DagNode> RetrieveProcessingPipeline(string dagid)
         {
-            if(id=="abc")
-            {
-                return JsonConvert.DeserializeObject<List<DagNode>>(JobPlaceholder.DefaultJob);
-            }
-            ProcessingPipelines.TryGetValue(id, out var result);
+
+            ProcessingPipelines.TryGetValue(dagid, out var result);
             return result;
+        }
+
+        internal void ClearCachedProcessingPipelines()
+        {
+            ProcessingPipelines.Clear();
         }
     }
 }
-
-public static class JobPlaceholder
-{
-    public static string DefaultJob =  @"
-[
-  {
-    ""node_id"": ""b86b3f52-7ee0-497a-8632-3c2e356b73a2"",
-    ""input_nodes"": [],
-    ""input_parameters"": {
-      ""node_id"": ""b86b3f52-7ee0-497a-8632-3c2e356b73a2"",
-      ""input"": [
-        {
-          ""input_type"": ""AcquisitionName"",
-          ""input_params"": {
-            ""input_json_params"": {
-              ""value"": ""NewAcq"",
-              ""name"": ""Input Acquisition""
-            }
-          }
-        },
-        {
-          ""input_type"": ""DetectorName"",
-          ""input_params"": {
-            ""input_json_params"": {
-              ""value"": ""DummyCam1"",
-              ""name"": ""Input Detector""
-            }
-          }
-        }
-      ]
-    },
-    ""output_nodes"": [
-      [
-        ""039402c1-3362-4794-a973-f851e99f78c7"",
-        ""039402c1-3362-4794-a973-f851e99f78c7""
-      ]
-    ],
-    ""isoutputnode"": false,
-    ""isinputnode"": true,
-    ""islazynode"": false,
-    ""api_path"": ""/api/io/live_input""
-  },
-  {
-    ""node_id"": ""039402c1-3362-4794-a973-f851e99f78c7"",
-    ""input_nodes"": [
-      ""b86b3f52-7ee0-497a-8632-3c2e356b73a2"",
-      ""b86b3f52-7ee0-497a-8632-3c2e356b73a2""
-    ],
-    ""input_parameters"": {
-      ""node_id"": ""039402c1-3362-4794-a973-f851e99f78c7"",
-      ""input"": [
-        {
-          ""input_type"": ""Image2D"",
-          ""isinputnode"": true,
-          ""input_params"": {
-            ""input_json_params"": {
-              ""image_dir"": ""b86b3f52-7ee0-497a-8632-3c2e356b73a2""
-            }
-          }
-        },
-        {
-          ""input_type"": ""Image2D"",
-          ""isinputnode"": true,
-          ""input_params"": {
-            ""input_json_params"": {
-              ""image_dir"": ""b86b3f52-7ee0-497a-8632-3c2e356b73a2""
-            }
-          }
-        }
-      ]
-    },
-    ""output_nodes"": [
-      [
-        ""d619c033-45c2-40a3-b4f4-4244166214fb""
-      ]
-    ],
-    ""isoutputnode"": false,
-    ""isinputnode"": false,
-    ""islazynode"": false,
-    ""api_path"": ""/api/processing/combine_channels""
-  },
-  {
-    ""node_id"": ""d619c033-45c2-40a3-b4f4-4244166214fb"",
-    ""input_nodes"": [
-      ""039402c1-3362-4794-a973-f851e99f78c7""
-    ],
-    ""input_parameters"": {
-      ""node_id"": ""d619c033-45c2-40a3-b4f4-4244166214fb"",
-      ""input"": [
-        {
-          ""input_type"": ""MeasurementElement"",
-          ""isinputnode"": true,
-          ""input_params"": {
-            ""input_json_params"": {
-              ""image_dir"": ""039402c1-3362-4794-a973-f851e99f78c7""
-            }
-          }
-        }
-      ]
-    },
-    ""output_nodes"": [],
-    ""isoutputnode"": true,
-    ""isinputnode"": false,
-    ""islazynode"": true,
-    ""api_path"": ""/api/io/plot_channels""
-  }
-]
-";
 
 
 
@@ -260,4 +154,3 @@ public static class JobPlaceholder
     //    ""api_path"": ""/api/io/measurement_output""
     //  }
     //]";
-}
