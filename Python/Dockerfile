@@ -10,6 +10,8 @@ RUN apt-get update && apt-get install -y \
     libfreetype6-dev \
     libpng-dev \
     pkg-config \
+    libgl1 \
+    libglib2.0-0 \
  && rm -rf /var/lib/apt/lists/*
 
 RUN curl -fsSL https://code-server.dev/install.sh | sh

@@ -132,7 +132,8 @@ namespace DagOrchestrator.Models
                     : null,
                 JobID = this.JobID,
                 IsInputNode = this.IsInputNode,
-                IsOutputNode = this.IsOutputNode
+                IsOutputNode = this.IsOutputNode,
+                IsLazyNode = this.IsLazyNode
             };
         }
     }

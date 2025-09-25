@@ -2,9 +2,10 @@ from typing import List, Optional
 from fastapi import Request
 from app.core.processing_nodes import NodeInput, IoInput
 from app.core.io_provider import ImageProviderOutput, ElementProviderOutput
-from app.core.dag_types import data_types, IOType
+from app.core.dag_types import data_types, IOType, Image2D, AcquisitionName, DetectorName
 from app.routers.processing_router import router
-
+from app.core.statemanagement.state import State
+from imagedata.image_data_handler import image_provider
 
 def node(input: Optional[List] = None, output: Optional[List[IOType]] = None, params: Optional[dict] = None):
     def decorator(func):
@@ -15,7 +16,7 @@ def node(input: Optional[List] = None, output: Optional[List[IOType]] = None, pa
                 data_types[input_val.input_type](**input_val.input_params.input_json_params).load_data()
                 for input_val in node_input.input
             ]
-
+            State.set_program_id(node_input.dagid)
             results = func(*argvals)
             if not isinstance(results, tuple):
                 results = [results]
@@ -52,12 +53,16 @@ def ionode(input: Optional[List] = None, output: Optional[List[IOType]] = None, 
                 data_types[input_val.input_type](**input_val.input_params.input_json_params).load_data()
                 for input_val in node_input.input
             ]
+            State.set_program_id(node_input.dagid)
 
-            results = func(node_input.job_id, *argvals)
+            if func == live_input:
+                results  = func(node_input.job_id, *argvals)
+            else:
+                results = func( *argvals)
             if(type(results)== ImageProviderOutput):
                 return [{"datatype": "Image2D", "image_dir": results.set_jobid(node_input.job_id)}]
             if(type(results)== ElementProviderOutput):
-                return results.element  
+                return results.element.serialize()
             
         async def endpoint_info():
             return {
@@ -81,3 +86,22 @@ def ionode(input: Optional[List] = None, output: Optional[List[IOType]] = None, 
         return func 
 
     return decorator
+
+
+
+@ionode(input=[], output=[Image2D], params= 
+    {
+        "Parameters": [
+            {
+             "type": AcquisitionName("","Input Acquisition")
+            },
+            {
+             "type": DetectorName("","Input Detector")
+            },
+        ]               
+    },
+    isinputnode = True,
+    isoutputnode = False, 
+    )
+def live_input(jobid, acq_name, det_name):
+    return  ImageProviderOutput(f'{acq_name}_{det_name}')

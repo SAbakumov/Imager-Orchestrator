@@ -26,8 +26,3 @@ async def clear_all_image_data(
 
     return {"status": "data cleared"}
 
-# @datarouter.post("/{process_id}/start")
-# async def submit_all(detindex:int, 
-#                     provider: ImageDataProvider = Depends(get_image_provider)
-# ):
-#     return {"status": "submitted"}

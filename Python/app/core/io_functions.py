@@ -12,82 +12,32 @@ import skimage as ski
 import tifffile
 
 
-@ionode(input=[MeasurementElement], output=[], params= 
-    {
-        "Parameters": [] ,
-    },
-    islazynode= False,
-    isinputnode = False,
-    isoutputnode = True                   
-    )
-
-def plot_channels(jobid,measurement_element):
-    channel_merger.get_html()
-    return  ElementProviderOutput(measurement_element)
 
 
 
-
-@ionode(input=[], output=[Image2D], params= 
-    {
-        "Parameters": [
-            {
-             "type": AcquisitionName("","Input Acquisition")
-            },
-            {
-             "type": DetectorName("","Input Detector")
-            },
-        ]               
-    },
-    isinputnode = True,
-    isoutputnode = False, 
-    )
-def live_input(jobid, acq_name, det_name):
-    image_provider.retrieve_image_data(f'{jobid}_{acq_name}_{det_name}')
-    return  ImageProviderOutput(f'{acq_name}_{det_name}')
-
-
-
-
-@ionode(input=[MeasurementElement], output=[], params= 
-    {
-        "Parameters": [
-        ]               
-    },
-    isinputnode = False,
-    isoutputnode = True,
-    )
-def measurement_output(jobid, measurement_element):
-    return  ElementProviderOutput(measurement_element)
-
-
-@ionode(input=[Image2D], output=[], params= 
+@ionode(input=[StageLoopProperties], output=[], params= 
     {
         "Parameters": []               
     },
     isinputnode = False,
     isoutputnode = True,
+    islazynode = True,
     )
-def wait(jobid, image):
+def stageloop_decision(dotimes_properties : StageLoopProperties):
+    stageloop_decision = StageLoop.from_properties(dotimes_properties)
+    return  ElementProviderOutput(stageloop_decision)
 
-    WaitElement =  WaitForTime(10)
-    return  ElementProviderOutput(WaitElement)
 
 
-@ionode(input=[Image2D], output=[], params= 
+
+@ionode(input=[DoTimesProperties], output=[], params= 
     {
-        "Parameters": [
-            {
-                "type": Scalar(10, "NTotal")
-            }
-        ]               
+        "Parameters": []               
     },
     isinputnode = False,
     isoutputnode = True,
     islazynode = True,
     )
-def dotimes(jobid, image, num_total):
-
-    dotimes_element =  DoTimes(ntotal=int(num_total))
-    
-    return  ElementProviderOutput(dotimes_element)
+def dotimes_decision(dotimes_properties : DoTimesProperties):
+    dotimes_decision = DoTimes.from_properties(dotimes_properties)
+    return  ElementProviderOutput(dotimes_decision)

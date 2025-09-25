@@ -91,4 +91,15 @@ namespace DagOrchestrator.Models
         [Key("z")]
         public float z { get; set; }
     }
+
+    public class JobImageData
+    {
+        public byte[] Image;
+        public string JobID;
+        public JobImageData(byte[] image, string jobID)
+        {
+            Image = image;
+            JobID = jobID;
+        }
+    }
 }

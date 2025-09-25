@@ -19,12 +19,10 @@ namespace DagOrchestrator.Services
 
         private readonly PythonComService _pythonComService;
         public Dictionary<string, JobDefinition> DagResults = new();
-        private IDatabase _db;
 
-        public JobSubmissionService(PythonComService pythonComService, IConnectionMultiplexer cache)
+        public JobSubmissionService(PythonComService pythonComService)
         {
             _pythonComService = pythonComService;
-            _db = cache.GetDatabase();
         }
 
         public bool IsJobForDagRunning(string job)
@@ -77,11 +75,15 @@ namespace DagOrchestrator.Services
         {
             foreach (var item in RunningJobs.Where(x => jobID == x.JobID))
             {
-                item.JobOutput = JObject.Parse(jobResult);
+                if (jobResult != string.Empty)
+                {
+                    item.JobOutput = JObject.Parse(jobResult);
+                }
                 if(!DagResults.TryAdd(item.DagID, item ))
                 {
                     DagResults[item.DagID] = item;
                 }
+                
             }
         }
 
@@ -105,9 +107,10 @@ namespace DagOrchestrator.Services
             RunningJobs.Remove(job);
         }
 
-        internal bool HasJobsInQueue()
+        internal bool HasJobsInQueue(string dagid)
         {
-            return RunningJobs.Count() > 0;
+            int num_jobs_with_dagId = RunningJobs.Where(x => x.DagID== dagid).Count();  
+            return num_jobs_with_dagId > 0;
         }
 
         internal JobDefinition? HasPendingPipeline(string dagId, int detectionindex)

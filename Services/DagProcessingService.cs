@@ -14,19 +14,16 @@ namespace DagOrchestrator.Services
         private readonly PythonComService _pythonComService;
         private readonly JobSubmissionService _jobSubmissionService;
 
-        private readonly IConnectionMultiplexer _imageCache;
-        private IDatabase _db;
 
         private ImageCacheGCService _imageCacheGCService;
 
-        public DagProcessingService(IDagScheduler dagScheduler, IConnectionMultiplexer cache, PythonComService pythonComService,
+        public DagProcessingService(IDagScheduler dagScheduler, PythonComService pythonComService, ImageCacheGCService imageCacheGCService,
             JobSubmissionService jobSubmissionService)
         {
             _jobSubmissionService = jobSubmissionService;
             _dagScheduler = dagScheduler;
             _pythonComService  = pythonComService;
-            _imageCache = cache;
-            _db = cache.GetDatabase();
+            _imageCacheGCService = imageCacheGCService;
 
         }
 
@@ -37,7 +34,7 @@ namespace DagOrchestrator.Services
         }
 
 
-        internal void HandleNode(DagNode node, string image_response)
+        internal async Task HandleNode(DagNode node, string image_response)
         {
 
             if (node is null)
@@ -52,7 +49,7 @@ namespace DagOrchestrator.Services
             }
             else if (!isOutputNode)
             {
-                HandleIntermediateNode(node, image_response);
+                await HandleIntermediateNode(node, image_response);
             }
             else if (isLazyNode)
             {
@@ -61,13 +58,14 @@ namespace DagOrchestrator.Services
 
         }
 
-        public async Task<string> ExecuteSingleNode(DagNode node)
+        public async Task<string> ExecuteSingleNode(DagNode node, string dagid)
         {
 
             var input_params = JObject.FromObject(node.InputParameters);
+            input_params["dagid"] = dagid;
             string json = JsonConvert.SerializeObject(input_params, Formatting.None);
 
-            var python_response = await _pythonComService.SubmitImagerAPICall(node.ApiPath, json);
+            var python_response = await _pythonComService.SubmitPythonAPIPostCall(node.ApiPath, json);
             var image_response = await python_response.Content.ReadAsStringAsync();
 
             return image_response;  
@@ -82,8 +80,7 @@ namespace DagOrchestrator.Services
                     var queued_job = _jobSubmissionService.DequeueJob();
                     if (queued_job != null)
                     {
-                        _dagScheduler.SetCurrentJob(queued_job.Nodes);
-                        _imageCacheGCService = new ImageCacheGCService(_db);
+                        _dagScheduler.SetCurrentJob(queued_job.Nodes, queued_job.DagID);
                         no_job_running = false;
                     }
                 }
@@ -93,23 +90,29 @@ namespace DagOrchestrator.Services
                 if (node != null && node.ApiPath!=null && node.InputParameters!=null)
                 {
                     _imageCacheGCService.TryAddNodeID(node);
+                    var image_response = string.Empty;
 
-                    var input_params = JObject.FromObject(node.InputParameters);
-                    string json = JsonConvert.SerializeObject(input_params, Formatting.None);
-
-                    var python_response = await  _pythonComService.SubmitImagerAPICall(node.ApiPath, json);
-                    var image_response =  await  python_response.Content.ReadAsStringAsync();
-
-                    if (python_response.StatusCode == HttpStatusCode.InternalServerError)
+                    if (node.IsLazyNode == null || !(bool)node.IsLazyNode)
                     {
-                        _dagScheduler.RemoveNodesWithJobId(node.JobID);
-                        _jobSubmissionService.SetJobStatusFailed(node.JobID, image_response);
-                        no_job_running = true;
-                        node = null;
+                        var input_params = JObject.FromObject(node.InputParameters);
+                        input_params["dagid"] = _dagScheduler.DagId;
+
+                        string json = JsonConvert.SerializeObject(input_params, Formatting.None);
+                        var python_response = await _pythonComService.SubmitPythonAPIPostCall(node.ApiPath, json);
+                        image_response = await python_response.Content.ReadAsStringAsync();
+
+                        if (python_response.StatusCode == HttpStatusCode.InternalServerError)
+                        {
+                            _dagScheduler.RemoveNodesWithJobId(node.JobID);
+                            _jobSubmissionService.SetJobStatusFailed(node.JobID, image_response);
+                            no_job_running = true;
+                            node = null;
+                        }
                     }
+    
 
 
-                    HandleNode(node, image_response);
+                    await Task.Run(() => HandleNode(node, image_response));
     
       
                 }
@@ -136,7 +139,7 @@ namespace DagOrchestrator.Services
             }
         }
 
-        private void HandleIntermediateNode(DagNode node, string imageResponse)
+        private async Task HandleIntermediateNode(DagNode node, string imageResponse)
         {
             JArray pythonOutputArray = JArray.Parse(imageResponse);
 
@@ -153,6 +156,13 @@ namespace DagOrchestrator.Services
 
                     case "MeasurementElement":
                         imageOutputParams.Add(output.ToObject<ElementResultOutput>());
+                        break;
+
+                    case "MeasurementElementProperties":
+                        var elementProp = output.ToObject<ElementPropertiesOutput>();   
+                        imageOutputParams.Add(elementProp);
+                        _imageCacheGCService.AddReferencePath(node, elementProp.image_dir);
+
                         break;
                 }
             }
@@ -172,7 +182,8 @@ namespace DagOrchestrator.Services
                             {
                                 ImageResultOutput imageOutput => imageOutput.image_dir,
                                 ElementResultOutput elementOutput => elementOutput.decision.ToString(Formatting.None),
-                                _ => item.ImageDir
+                                ElementPropertiesOutput elementPropOutput => elementPropOutput.image_dir,
+                                _ => item.ImageDir,
                             };
 
                             item.IsAssigned = true;
@@ -182,7 +193,7 @@ namespace DagOrchestrator.Services
             }
 
             _imageCacheGCService.RemoveReferenceNodeID(node);
-            _imageCacheGCService.InvokeNodeGC();
+            await _imageCacheGCService.InvokeNodeGC();
             _dagScheduler.RemoveNode(node);
         }
 
@@ -210,5 +221,11 @@ namespace DagOrchestrator.Services
     {
         public override string datatype { get; set; }
         public JObject decision { get; set; }
+    }
+
+    public class ElementPropertiesOutput : PythonOutput
+    {
+        public override string datatype { get; set; }
+        public string image_dir { get; set; }
     }
 }

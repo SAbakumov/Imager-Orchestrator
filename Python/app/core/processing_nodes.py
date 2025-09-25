@@ -7,9 +7,8 @@ class InputParams(BaseModel):
 
 class InputItem(BaseModel):
     input_type: Literal["Image2D", 
-                        "MeasurementElement",
+                        "MeasurementElementProperties",
                         "Volume3D", 
-                        "MMFPath",
                         "numeric", 
                         "Scalar", 
                         "Categoric",
@@ -22,11 +21,13 @@ class InputItem(BaseModel):
 
 
 class NodeInput(BaseModel):
+    dagid : str
     node_id: str
     input: List[InputItem]
 
 
 class IoInput(BaseModel):
+    dagid: str
     node_id: str
     job_id: str
     input: List[InputItem]

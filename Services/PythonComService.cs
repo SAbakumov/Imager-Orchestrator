@@ -11,12 +11,16 @@ namespace DagOrchestrator.Services
     public class PythonComService
     {
 
-        private string _port = "http://localhost:8400";
         private HttpClient _httpClient;
 
         public PythonComService(HttpClient httpClient) 
         { 
             _httpClient = httpClient;
+        }
+
+        public Uri? GetPythonAdress()
+        {
+            return _httpClient.BaseAddress;
         }
 
         public async Task<string> GetAvailableNodes()
@@ -31,11 +35,26 @@ namespace DagOrchestrator.Services
             return func_info;
         }
 
-        public async Task<HttpResponseMessage> SubmitImagerAPICall(string route, string nodeinfo)
+        public async Task<HttpResponseMessage> SubmitPythonAPIPostCall(string route, string nodeinfo)
         {
-
             var payload = new StringContent(nodeinfo, Encoding.UTF8, "application/json");
             var response = await _httpClient.PostAsync(route, payload);
+
+            return response;
+        }
+
+        public async Task<HttpResponseMessage> SubmitPythonAPIGetCall(string route, string dagid)
+        {
+            string query = $"?dagid={dagid}";
+            var response = await _httpClient.GetAsync(route+ query);
+
+            return response;
+        }
+
+        public async Task<HttpResponseMessage> SubmitPythonAPIDeleteCall(string route, string payload)
+        {
+            string query = $"/{payload}";
+            var response = await _httpClient.DeleteAsync(route + query);
 
             return response;
         }

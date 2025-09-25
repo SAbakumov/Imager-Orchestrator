@@ -1,6 +1,7 @@
 ﻿using DagOrchestrator.Models;
 using DagOrchestrator.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
 using StackExchange.Redis;
 
 namespace DagOrchestrator.Controllers
@@ -11,15 +12,16 @@ namespace DagOrchestrator.Controllers
     {
         private readonly DagProcessingService _dagProcessor;
         private readonly DagRegisterService _dagRegister;
+        private readonly PythonComService _pythonService;
 
-        public NodeSubmissionController(DagProcessingService dagProcessor, IConnectionMultiplexer rediscache, DagRegisterService dagRegister)
+        public NodeSubmissionController(DagProcessingService dagProcessor, DagRegisterService dagRegister, 
+            PythonComService pythonService)
         {
             _dagProcessor = dagProcessor;
             _dagRegister = dagRegister;
+            _pythonService = pythonService;
 
-            var server = rediscache.GetServer("dagorchestrator-redis-1", 6379);
             // Whenever new experiment run starts, we flush the DB to prevent uncleared data from interfering.
-            server.FlushDatabase();
         }
 
         /// <summary>
@@ -28,9 +30,12 @@ namespace DagOrchestrator.Controllers
         [HttpPost("set_dags")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public IActionResult SetDags([FromBody] List<DagSubmissionRequest> dagDefinitions)
+        public async Task<IActionResult> SetDags([FromBody] List<DagSubmissionRequest> dagDefinitions)
         {
+            await _pythonService.SubmitPythonAPIGetCall("/purge_all", "");
             _dagRegister.ClearCachedProcessingPipelines();
+
+
             if (dagDefinitions == null || dagDefinitions.Count == 0)
                 return BadRequest("No DAG definitions provided.");
 
@@ -45,6 +50,7 @@ namespace DagOrchestrator.Controllers
                 }
 
                 _dagRegister.CacheProcessingPipeline(dag.DagID, dag.DagNodes);
+
             }
 
             if (errors.Count > 0)

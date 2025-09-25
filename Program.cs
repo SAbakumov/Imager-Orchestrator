@@ -4,16 +4,17 @@ using DagOrchestrator.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OpenApi.Models;
 using Newtonsoft;
-using System.Net;
-using System.Reflection;
 using StackExchange.Redis;
+using System.Net;
+using System.Net.Http;
+using System.Reflection;
 
 
 var builder = WebApplication.CreateBuilder(args);
 System.Net.ServicePointManager.Expect100Continue = false;
 
 // Add services to the container.
-builder.WebHost.UseKestrel().UseUrls("http://0.0.0.0:5100"); ;
+builder.WebHost.UseKestrel().UseUrls("http://127.0.0.1:5100"); ;
 builder.Services.AddControllers().AddNewtonsoftJson();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -37,8 +38,10 @@ builder.Services.AddSwaggerGen(options  =>
 
 builder.Services.AddHttpClient<PythonComService>(client =>
 {
-    client.BaseAddress = new Uri("http://host.docker.internal:8400");
-    //client.BaseAddress = new Uri("http://localhost:8400");
+    //client.BaseAddress = new Uri("http://host.docker.internal:8400");
+    client.BaseAddress = new Uri("http://127.0.0.1:8400");
+    client.DefaultRequestVersion = HttpVersion.Version11;
+   
 
 }).ConfigurePrimaryHttpMessageHandler(() =>
 {
@@ -49,26 +52,25 @@ builder.Services.AddHttpClient<PythonComService>(client =>
 
 
 
-builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
-{
-    var configuration = builder.Configuration.GetConnectionString("Redis");
-    return ConnectionMultiplexer.Connect(configuration);
-});
 
-builder.Services.AddStackExchangeRedisCache(options =>
-{
-    options.Configuration = builder.Configuration.GetConnectionString("Redis");
-    options.InstanceName = "ImageCache:";
-});
 
 builder.WebHost.ConfigureKestrel(options =>
 {
-    options.Limits.MaxRequestBodySize = 104857600; 
+    options.Limits.MaxRequestBodySize = 104857600;
 });
+
+var webSocketOptions = new WebSocketOptions
+{
+    KeepAliveInterval = TimeSpan.FromMinutes(2)
+};
+
 
 
 builder.Services.AddTransient<NodeProcessor>();
 builder.Services.AddTransient<DagProcessingService>();
+builder.Services.AddSingleton<ImageSubmissionService>();
+builder.Services.AddTransient<ImageCacheGCService>();
+
 builder.Services.AddSingleton<DagRegisterService>();
 builder.Services.AddSingleton<JobSubmissionService>();
 
@@ -89,7 +91,7 @@ var app = builder.Build();
 app.UseExceptionHandler();
 app.UseSwagger();
 app.UseSwaggerUI();
-app.UseHttpsRedirection();
+app.UseWebSockets(webSocketOptions);
 app.UseAuthorization();
 app.MapControllers();
 app.Run();

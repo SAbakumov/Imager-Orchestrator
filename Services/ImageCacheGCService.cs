@@ -1,4 +1,5 @@
 ﻿using DagOrchestrator.Models;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using StackExchange.Redis;
 using System.Xml.Linq;
 
@@ -8,12 +9,11 @@ namespace DagOrchestrator.Services
     {
         public Dictionary<Guid, List<string>> CoupledNodeIDs { get; set; } = new();
         public Dictionary<Guid, List<string>> CoupledImagePaths { get; set; } = new();
+        private PythonComService _pythonComService;
 
-        private readonly IDatabase _db;
-
-        public ImageCacheGCService(IDatabase db)
+        public ImageCacheGCService(PythonComService pythonComService)
         {
-            _db = db;
+            _pythonComService = pythonComService;
         }
 
         public void TryAddNodeID(DagNode node)
@@ -43,48 +43,65 @@ namespace DagOrchestrator.Services
             }
         }
 
-        public void InvokeNodeGC()
+        public async Task InvokeNodeGC()
         {
+            var to_remove_nodes = new List<Guid>();
             foreach (var node_refnode in CoupledNodeIDs)
             {
-                if(CoupledNodeIDs[node_refnode.Key].Count==0)
+
+
+                if (CoupledNodeIDs[node_refnode.Key].Count == 0)
                 {
-                    _db.KeyDelete(CoupledImagePaths[node_refnode.Key].Select( x=>
+
+                    var to_delete_Keys = CoupledImagePaths[node_refnode.Key].Select(x =>
                     {
-                        if(x.Contains("fromprovider"))
+                        if (x.Contains("fromprovider"))
                         {
                             string result = x.StartsWith("fromprovider::")
                             ? x.Substring("fromprovider::".Length)
                             : x;
-                            return new RedisKey(result);
+                            return result;
                         }
-                        return new RedisKey(x);
-                    }).ToArray());
+                        return x;
+                    }).ToArray();
+                    foreach( var key in to_delete_Keys)
+                    {
+                        await _pythonComService.SubmitPythonAPIDeleteCall("/clear_key", key);
+                    }
+                    to_remove_nodes.Add(node_refnode.Key);
                 }
+            }
+            foreach(var key in to_remove_nodes)
+            {
+                CoupledNodeIDs.Remove(key);
+                CoupledImagePaths.Remove(key);
             }
         }
 
-        public static void CleanMemoryForNodeID(DagNode node, IDatabase db)
+        public async Task CleanMemoryForNodeID(DagNode node)
         {
             foreach(var image_inputs in node.InputParameters.Input)
             {
 
                 string to_clear_keys = image_inputs.ImageDir;
-                RedisKey rds_key;
+                string result;
                 if (to_clear_keys.Contains("fromprovider"))
-                {
-                    string result = to_clear_keys.StartsWith("fromprovider::")
+                { 
+                    result = to_clear_keys.StartsWith("fromprovider::")
                        ? to_clear_keys.Substring("fromprovider::".Length)
                        : to_clear_keys;
-                    rds_key = new RedisKey(result);
                 }
                 else
                 {
-                    rds_key = new RedisKey(to_clear_keys);
+                    result = to_clear_keys;
                 }
 
-                db.KeyDelete(rds_key);
+                await _pythonComService.SubmitPythonAPIDeleteCall("/clear_key", result);
+                //db.KeyDelete(rds_key);
             }
+            CoupledNodeIDs.Remove(node.NodeId);
+            CoupledImagePaths.Remove(node.NodeId);
+
         }
     }
 }

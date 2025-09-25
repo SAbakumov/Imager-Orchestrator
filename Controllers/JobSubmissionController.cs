@@ -15,13 +15,18 @@ namespace DagOrchestrator.Controllers
         private readonly JobSubmissionService _jobService;
         private readonly DagRegisterService _dagRegister;
         private readonly DagProcessingService _dagProcessor;
+        private readonly PythonComService _pythonService;
+        private readonly ImageCacheGCService _imageCacheGCService;
 
 
-        public JobSubmissionController(JobSubmissionService jobService, DagRegisterService dagRegister, DagProcessingService dagProcessor)
+        public JobSubmissionController(JobSubmissionService jobService, DagRegisterService dagRegister, DagProcessingService dagProcessor, 
+            PythonComService pythonService, ImageCacheGCService imageCacheGCService)
         {
             _jobService = jobService;  
             _dagRegister = dagRegister; 
             _dagProcessor = dagProcessor;
+            _pythonService = pythonService;
+            _imageCacheGCService = imageCacheGCService;
 
         }
 
@@ -37,7 +42,7 @@ namespace DagOrchestrator.Controllers
 
             try
             {
-                while (_jobService.HasJobsInQueue())
+                while (_jobService.HasJobsInQueue(dagid))
                 {
                     await Task.Delay(500, cts.Token);
                 }
@@ -59,9 +64,10 @@ namespace DagOrchestrator.Controllers
 
             if (job.LazyNode != null)
             {
-                var response = await Task.Run(() => _dagProcessor.ExecuteSingleNode(job.LazyNode));
+                var response = await Task.Run(() => _dagProcessor.ExecuteSingleNode(job.LazyNode, dagid));
                 job.JobOutput = JObject.Parse(response);
                 job.Status = JobStatus.Completed;
+                await _imageCacheGCService.CleanMemoryForNodeID(job.LazyNode);
             }
 
 
@@ -79,7 +85,7 @@ namespace DagOrchestrator.Controllers
                 return StatusCode(500, new { type = "status", status = "error",
                     what = "decision type could not be inferred from job output" });
             }
-
+            await _pythonService.SubmitPythonAPIGetCall("/purge_state", dagid);
 
             switch (job.Status)
             {

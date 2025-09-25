@@ -1,17 +1,22 @@
 # main.py
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request,  Body 
 from fastapi.responses import JSONResponse, HTMLResponse
-from app.routers.processing_router import router
+from fastapi.middleware.cors import CORSMiddleware
 
+from app.routers.processing_router import router
+from app.core.statemanagement.state import State
+
+import asyncio, threading
 import uvicorn
-import time
-import asyncio
 import traceback
-import plotly.express as px
-import numpy as np 
+import msgpack
 import app.core.processing_functions
+import app.core.user_classes.accumulate_stage_loop
 import app.core.io_functions
 
+
+from app.core.imagecache.image_cache import LocalImageCache
+from fastapi import FastAPI, WebSocket
 from app.core.user_classes.merge_channels import channel_merger
 from imagedata.image_data_handler import datarouter
 from imagedata.image_data_handler import image_provider
@@ -21,13 +26,14 @@ app.include_router(router, prefix="/api")
 app.include_router(datarouter, prefix="/imagedata")
 
 
-@app.get("/plot", response_class=HTMLResponse)
-def serve_plot():
-    return HTMLResponse(content=channel_merger.get_html())
+def run_server():
+    asyncio.run(LocalImageCache.start())
 
-@app.get("/ping")
-async def ping():
-    return {"status": "ok"}
+thread = threading.Thread(target=run_server, daemon=True)
+thread.start()
+
+
+
 
 @app.exception_handler(Exception)
 async def exception_handler(request: Request, exc: Exception):
@@ -42,15 +48,24 @@ async def exception_handler(request: Request, exc: Exception):
         }
     )
 
+@app.post("/set_jobid")
+async def set_jobid(job: str = Body(..., embed=True)):
+    LocalImageCache.current_job_id = job
 
-@app.post("/api/test")
-async def test_endpoint(request: Request):
-    start = time.time()
-    data = await request.json()  # read JSON payload
-    end = time.time()
-    elapsed = end - start
-    return {"received": data, "elapsed_seconds": elapsed}
 
+@app.delete("/clear_key/{keyval}")
+def clear_key( keyval: str):
+    LocalImageCache.clear_key(keyval)
+    return {'status':'success'}
+
+
+@app.get("/purge_state")
+async def clear_state(dagid: str):
+    State.reset_program(dagid)
+
+@app.get("/purge_all")
+async def clear_all_state(dagid: str):
+    State.reset()
 
 @app.get("/api/get_nodes")
 def get_processing_nodes():
@@ -65,8 +80,6 @@ def get_processing_nodes():
     return nodelist
 
 
-for route in app.routes:
-    print(f"{route.path} [{','.join(route.methods)}]")
 
 @app.get("/")
 def root():

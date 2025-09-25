@@ -9,6 +9,7 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection.Metadata;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace DagOrchestrator.Controllers
 {
@@ -17,20 +18,31 @@ namespace DagOrchestrator.Controllers
     public class DataSubmissionController : Controller
     {
         private readonly DagRegisterService _dagRegister;
-        private readonly IConnectionMultiplexer _redisImageCache;
-        private readonly IDatabase _db;
+
         private readonly PythonComService _pythonComService;
         private readonly JobSubmissionService _jobSubmissionService;
+        private readonly ImageSubmissionService _imageSubmissionService;
+        private readonly Uri jobIdSetter;
 
 
 
-        public DataSubmissionController( DagRegisterService dagRegister, IConnectionMultiplexer cache,PythonComService pythonComService, JobSubmissionService jobService)
+        public DataSubmissionController( DagRegisterService dagRegister,PythonComService pythonComService, JobSubmissionService jobService, 
+            ImageSubmissionService imService)
         {
-            _redisImageCache = cache;
-            _db = _redisImageCache.GetDatabase();    
+
             _dagRegister = dagRegister;
             _pythonComService = pythonComService;
             _jobSubmissionService = jobService;
+            _imageSubmissionService = imService;
+
+            string serviceUrl = _pythonComService.GetPythonAdress().ToString();
+
+            UriBuilder builder = new UriBuilder(serviceUrl)
+            {
+                Path = "set_jobid"
+            };
+
+            jobIdSetter = builder.Uri;
         }
         private List<MessagePackData> StartMessagePackReader(byte[] receivedData, int bufferlength)
         {
@@ -47,16 +59,6 @@ namespace DagOrchestrator.Controllers
         }
 
 
-        [HttpGet("submit_data_warmup")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> SubmitData()
-        {
-
-            return Ok(new { Message = "{status : connected}" });
-        }
-
-
 
         /// <summary>
         /// Data submission endpoint. Expects data in valid MessagePack format
@@ -69,9 +71,10 @@ namespace DagOrchestrator.Controllers
             var stopwatch = Stopwatch.StartNew();
 
             using var memoryStream = new MemoryStream();
-            await Request.Body.CopyToAsync(memoryStream);
+            await Request.Body.CopyToAsync(memoryStream, 2*2048*2048);
             byte[] receivedData = memoryStream.GetBuffer();
             int validLength = (int)memoryStream.Length;
+
 
             List<MessagePackData> deserializedMessages = StartMessagePackReader(receivedData, validLength);
             var options = new DistributedCacheEntryOptions
@@ -81,52 +84,33 @@ namespace DagOrchestrator.Controllers
 
 
             var tasks = new List<Task>();
-            var batch = _db.CreateBatch();
+            //var batch = _db.CreateBatch();
             var jobid = Guid.NewGuid().ToString();
 
             foreach (var image in deserializedMessages)
             {
 
-                ReadOnlyMemory<byte> mem = image.message.data.imagedata;
-
-                tasks.Add(batch.StringSetAsync($"{jobid}_{image.message.metadata.acquisitiontype}_{image.message.data.detectorname}", mem));
-
-                var hashKeySize = $"{jobid}_{image.message.metadata.acquisitiontype}_{image.message.data.detectorname}_size";
-                var entriesSize = new HashEntry[]
+                if (_jobSubmissionService.HasPendingPipeline(DagId, image.message.metadata.detectionindex) is JobDefinition pending_job)
                 {
-                new("nrows", image.message.data.nrows),
-                new("ncols", image.message.data.ncols)
-                };
-                tasks.Add(batch.HashSetAsync(hashKeySize, entriesSize));
+                    jobid = pending_job.JobID;
+                }
 
-                var hashKeyPosition = $"{jobid}_{image.message.metadata.acquisitiontype}_{image.message.data.detectorname}_position";
-                var entriesPosition = new HashEntry[]
-                {
-                new("x", image.message.metadata.stageposition.x),
-                new("y", image.message.metadata.stageposition.y),
-                new("z", image.message.metadata.stageposition.z),
-                new("usinghardwareautofocus", image.message.metadata.stageposition.usinghardwareautofocus),
-                new("offset", image.message.metadata.stageposition.hardwareautofocusoffset)
-
-                };
-                tasks.Add(batch.HashSetAsync(hashKeyPosition, entriesPosition));
+                _imageSubmissionService.Enqueue(new JobImageData(receivedData, jobid));
 
             }
 
-            batch.Execute();
 
-            Task.WhenAll(tasks).Wait();
 
 
 
             foreach (var image in deserializedMessages)
             {
-                if(_jobSubmissionService.HasPendingPipeline(DagId, image.message.metadata.detectionindex) is JobDefinition pending_job)
+                if (_jobSubmissionService.HasPendingPipeline(DagId, image.message.metadata.detectionindex) is JobDefinition pending_job)
                 {
                     pending_job.ReceivedImages++;
-                    if(pending_job.ReceivedImages == pending_job.MaxImages)
+                    if (pending_job.ReceivedImages == pending_job.MaxImages)
                     {
-                        
+
                         _jobSubmissionService.SubmitJob(pending_job);
                         _jobSubmissionService.RemovePendingJob(pending_job);
                     }
@@ -162,9 +146,12 @@ namespace DagOrchestrator.Controllers
                         }
                     }
                 }
-            
+
             }
             return Ok(new { type = "status", status = "success" });
         }
     }
+
+
+
 }

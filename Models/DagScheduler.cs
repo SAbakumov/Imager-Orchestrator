@@ -6,6 +6,7 @@ namespace DagOrchestrator.Models
 {
     public interface IDagScheduler
     {
+        public string DagId { get; set; }
         public void StartSubmission();
         public void AppendDagNodes(List<DagNode> dagNodes);
         public DagNode? RetrieveSubmissionReadyNode();
@@ -13,12 +14,13 @@ namespace DagOrchestrator.Models
         public DagNode? RetrieveNodeByNodeID(string nodeid);
 
         void RemoveNodesWithJobId(string? jobID);
-        void SetCurrentJob(List<DagNode> dagNodes);
+        void SetCurrentJob(List<DagNode> dagNodes, string dagId);
     }
 
     public class DagScheduler : IDagScheduler
     {
         private readonly object _lock = new();
+        public string DagId { get; set; }
         private readonly PythonComService _pythonComService;
 
         List<DagNode> DagNodes = new();
@@ -75,9 +77,10 @@ namespace DagOrchestrator.Models
         }
 
 
-        public void SetCurrentJob(List<DagNode> dagNodes)
+        public void SetCurrentJob(List<DagNode> dagNodes, string dagId)
         {
             DagNodes = dagNodes;
+            DagId = dagId;
         }
     }
 }

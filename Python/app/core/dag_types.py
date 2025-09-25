@@ -1,15 +1,15 @@
 import numpy as np
 import os , io , json
 from abc import ABC, abstractmethod
-from typing import Any, List
+from typing import Any, List, Dict
 from pathlib import Path
 from pydantic import BaseModel
-from imagedata.image_data_handler import image_provider
+from app.core.imagecache.image_cache import LocalImageCache
 
 
-from app.core.measurements.measurementelements import XYStagePosition
+from app.core.measurements.measurementelementsutils import XYStagePosition
 from app.utils.mmf_processor import MMFProcessor
-from app.core.imagecache.redis_image_cache import ImageCache
+from app.core.imagecache.image_cache import ImageCache
 
 # -------------------------------
 # Base IO types
@@ -66,23 +66,41 @@ class Image2DPath():
         return {"datatype": "Image2DPath", "image_dir": ""}
 
 # -------------------------------
-# Measurement Element type
+# MeasurementElementProperties type
 # -------------------------------
-class MeasurementElement():
-   
+class MeasurementElementProperties(IOType):
+    image_dir: str
+    element_parameters: Dict = {}
 
-    def __init__(self, image_dir):
-        self.image_dir = image_dir
-    def load_data(self):
-        return self.image_dir
+ 
+    @classmethod
+    def from_dict(cls, element_parameters :dict) -> "MeasurementElementProperties":
+        return cls(image_dir="", element_parameters=element_parameters)
+
+    def set_measurement_element(self,measurement_element: dict):
+        self.element_parameters = measurement_element
+    
+    def load_data(self) -> "MeasurementElementProperties":
+        data = LocalImageCache.cache[self.image_dir]
+        return data
+
 
     @staticmethod
     def serialize() -> dict:
-        return {"datatype": "MeasurementElement"}
+        return {"datatype": "MeasurementElementProperties",
+                "image_dir": ""}
 
     @staticmethod
-    def set_result(measurement_element, name: str) -> dict:    
-        return measurement_element.serialize()
+    def set_result(measurement_element : "MeasurementElementProperties", name: str) -> dict:    
+        out_path_data =  f"{name}.npy"
+        LocalImageCache.cache[out_path_data] = measurement_element
+
+        return {"datatype": "MeasurementElementProperties",
+                "image_dir":  out_path_data}
+
+
+
+
 
 
 
@@ -97,7 +115,7 @@ class Image2D(ArrayType):
     image_shape: list | None = None
     image_cache: Any = None  # make it optional
     imdata : np.ndarray = None
-    xy_pos: list = None
+    xy_pos:  Any = None
 
     model_config = {
         "arbitrary_types_allowed": True
@@ -108,7 +126,7 @@ class Image2D(ArrayType):
         prefix = image_dir.split("::")[0]
 
         self.image_dir = image_dir
-        self.image_cache = ImageCache.cache
+        self.image_cache = LocalImageCache
         self.imdata = np.zeros(0)
         self.xy_pos = list()
 
@@ -123,29 +141,29 @@ class Image2D(ArrayType):
 
         prefix = self.image_dir.split("::")[0]
         if prefix == "fromprovider":
-            array_im_data = image_provider.image_data[self.image_dir.split("::")[1]]
+            array_im_data = LocalImageCache.image_data[self.image_dir.split("::")[1]]
             image2Ddata = Image2D.from_array(array_im_data)
-            image2Ddata.set_xy_positions(image_provider.position_data[self.image_dir.split("::")[1]])
+            image2Ddata.set_xy_positions(LocalImageCache.position_data[self.image_dir.split("::")[1]])
             return image2Ddata
             
 
         elif self.image_dir.split('.')[-1] == "npy":
             image_key = self.image_dir.rsplit('.', 1)[0]
-            data_buffer = io.BytesIO(self.image_cache.get(self.image_dir))
-            image = np.load(data_buffer)
+            image = LocalImageCache.cache[self.image_dir]
 
-            data_position = json.loads( self.image_cache.get(f'{image_key}_position'))
-            xy_positions = [XYStagePosition.from_cache(x) for x in data_position]
+            data_position = LocalImageCache.cache[f'{image_key}_position']
 
             image2Ddata = Image2D.from_array(image)
-            image2Ddata.set_xy_positions(xy_positions)
+            if len(data_position)!=0:
+            
+                image2Ddata.set_xy_positions(data_position)
 
             return image2Ddata
         else:
             raise ValueError(f"Unsupported file type: {self.image_dir.suffix}")
         
 
-    def set_xy_positions(self, xy_pos : List[XYStagePosition]):
+    def set_xy_positions(self, xy_pos : XYStagePosition):
         self.xy_pos = xy_pos
 
     @staticmethod
@@ -157,46 +175,17 @@ class Image2D(ArrayType):
         out_path_data =  f"{name}.npy"
         out_path_position = f"{name}_position"
         
-        buf = io.BytesIO()
-        np.save(buf, image.imdata)
-        ImageCache.cache.set(out_path_data, buf.getvalue())
-        ImageCache.cache.set(out_path_position, json.dumps(image.xy_pos))
+
+        LocalImageCache.cache[out_path_data] =  image.imdata
+        LocalImageCache.cache[out_path_position] = image.xy_pos
         
         return {"datatype": "Image2D", "image_dir": out_path_data  }
 
 
 
-# -------------------------------
-# 3D Volume type
-# -------------------------------
-class Volume3D(ArrayType):
-    ndim: int = 3
-    dtype: str = "float32"
-    image_shape: list
-    image_type: str
-    image_dir: str
-
-    def __init__(self, image_shape: list, image_type: str, image_dir: str):
-        self.image_shape = image_shape
-        self.image_type = image_type
-        self.image_dir = image_dir
-
-    def load_data(self) -> np.ndarray:
-        return MMFProcessor.load_array_from_mmf(self.image_dir)
 
 
-# -------------------------------
-# Other types
-# -------------------------------
-class MMFPath:
-    dtype: str
-    image_dir: str
 
-    def __init__(self, image_dir: str):
-        self.image_dir = image_dir
-
-    def load_data(self) -> str:
-        return self.image_dir
 
 class AcquisitionName:
     dtype: str
@@ -275,11 +264,9 @@ class Categoric:
 # -------------------------------
 # Data types mapping
 # -------------------------------
-data_types = {
+data_types  = {
     "Image2D": Image2D,
-    "MeasurementElement": MeasurementElement,
-    "Volume3D": Volume3D,
-    "MMFPath": MMFPath,
+    "MeasurementElementProperties": MeasurementElementProperties,
     "Scalar": Scalar,
     "Categoric": Categoric,
     "Text": Text,

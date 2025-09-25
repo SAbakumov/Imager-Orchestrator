@@ -1,7 +1,7 @@
 import numpy as np 
 
-from app.core.measurements.measurementelements import WaitForTime
 from app.core.dag_types import *
+from app.core.measurements.measurementelements import *
 from app.decorators.node_decorator import node 
 from scipy.ndimage import gaussian_filter
 from app.core.user_classes.merge_channels import channel_merger
@@ -10,12 +10,6 @@ import skimage as ski
 
 
 
-@node(input=[Image2D], output=[MeasurementElement], params= 
-    {
-        "Parameters": []               
-    })
-def set_wait_time(input_arr):
-    return WaitForTime(10)
 
 
 
@@ -55,8 +49,20 @@ def image_arithmetic(input_arr1: Image2D, input_arr2 : Image2D, input_option):
     })
 def calculate_mean(data: Image2D):
     mean_all = np.mean(data.imdata)
-    return Image2D.from_array(mean_all)
+    data.imdata = mean_all
+    return data
 
+
+
+@node(input=[Image2D], output=[DoTimesProperties], params= 
+    {
+        "Parameters": [ ]                     
+    })
+def return_dotimes(data: Image2D):
+
+    loop = DoTimes(20)
+
+    return loop.properties
 
 
 
