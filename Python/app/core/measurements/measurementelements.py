@@ -5,6 +5,19 @@ from app.core.measurements.measurementelementsutils import XYStagePosition
 import json
 
 
+
+class DoTimesProperties(MeasurementElementProperties):
+
+    @staticmethod
+    def serialize() -> dict:
+        return {
+            "datatype": "MeasurementElementProperties",
+            "image_dir": "",
+            "elementtype": "DoTimes"
+        }    
+
+
+
     
 class DoTimes():
     def __init__(self, ntotal) -> None:
@@ -28,19 +41,21 @@ class DoTimes():
                 "ntotal": self.ntotal })
 
 
-class DoTimesProperties(MeasurementElementProperties):
+
+
+
+
+
+
+class TimeLapseProperties(MeasurementElementProperties):
 
     @staticmethod
     def serialize() -> dict:
         return {
             "datatype": "MeasurementElementProperties",
             "image_dir": "",
-            "elementtype": "DoTimes"
+            "elementtype": "TimeLapse"
         }    
-
-
-
-
 
 
 
@@ -58,6 +73,35 @@ class TimeLapse():
         }
     
 
+    @classmethod
+    def from_properties(cls, properties : MeasurementElementProperties) -> "TimeLapse":
+        return cls(properties.element_parameters["ntotal"], 
+                   properties.element_parameters["timedelta"])
+
+
+    @property 
+    def properties(self) -> "TimeLapseProperties":
+        return TimeLapseProperties.from_dict({
+            "type": self.type,
+            "ntotal": self.ntotal,
+            "timedelta": self.timedelta
+        })
+
+
+
+
+
+
+
+class RelativeStageLoopProperties(MeasurementElementProperties):
+
+    @staticmethod
+    def serialize() -> dict:
+        return {
+            "datatype": "MeasurementElementProperties",
+            "image_dir": "",
+            "elementtype": "RelativeStageLoop"
+        }    
 
 
 
@@ -120,7 +164,7 @@ class RelativeStageLoop():
 
     @property 
     def properties(self) -> "RelativeStageLoopProperties":
-        return DoTimesProperties.from_dict({   
+        return RelativeStageLoopProperties.from_dict({   
                 "type": self.type,
                 "params": {
                     "deltax": self.dx,
@@ -147,6 +191,16 @@ class RelativeStageLoopProperties(MeasurementElementProperties):
 
 
 
+
+class StageLoopProperties(MeasurementElementProperties):
+
+    @staticmethod
+    def serialize() -> dict:
+        return {
+            "datatype": "MeasurementElementProperties",
+            "image_dir": "",
+            "elementtype": "StageLoop"
+        }    
 
 
 
@@ -188,16 +242,6 @@ class StageLoop:
                 "type": self.type,
                 "positions": [pos.serialize() for pos in self.positions] })
 
-
-class StageLoopProperties(MeasurementElementProperties):
-
-    @staticmethod
-    def serialize() -> dict:
-        return {
-            "datatype": "MeasurementElementProperties",
-            "image_dir": "",
-            "elementtype": "StageLoop"
-        }    
 
 
 

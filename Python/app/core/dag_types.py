@@ -154,9 +154,7 @@ class Image2D(ArrayType):
             data_position = LocalImageCache.cache[f'{image_key}_position']
 
             image2Ddata = Image2D.from_array(image)
-            if len(data_position)!=0:
-            
-                image2Ddata.set_xy_positions(data_position)
+            image2Ddata.set_xy_positions(data_position)
 
             return image2Ddata
         else:

@@ -1,16 +1,34 @@
 import numpy as np 
-
+import cv2 as cv
 from app.core.dag_types import *
 from app.core.measurements.measurementelements import *
 from app.decorators.node_decorator import node 
 from scipy.ndimage import gaussian_filter
 from app.core.user_classes.merge_channels import channel_merger
+import matplotlib.pyplot as plt 
 
 import skimage as ski
 
 
+@node(input=[Image2D], output=[Image2D], params= 
+    {
+        "Parameters": [
+            {
+             "type": Scalar(10, 'Blur radius')
+            }  ]    
+                       
+    })
+def focus_score(image: Image2D, blur):
+   image_filtered = cv.medianBlur(image.imdata, int(blur))
+   laplacian = cv.Laplacian(image_filtered, cv.CV_64F)
 
+   
+   focus_score = laplacian.var()
 
+   im_filtered = Image2D.from_array(focus_score)
+   im_filtered.set_xy_positions(image.xy_pos)
+
+   return im_filtered
 
 
 

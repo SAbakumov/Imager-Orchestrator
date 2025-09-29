@@ -41,3 +41,17 @@ def stageloop_decision(dotimes_properties : StageLoopProperties):
 def dotimes_decision(dotimes_properties : DoTimesProperties):
     dotimes_decision = DoTimes.from_properties(dotimes_properties)
     return  ElementProviderOutput(dotimes_decision)
+
+
+
+@ionode(input=[DoTimesProperties], output=[], params= 
+    {
+        "Parameters": []               
+    },
+    isinputnode = False,
+    isoutputnode = True,
+    islazynode = True,
+    )
+def timelapse_decision(timelapse_properties : DoTimesProperties):
+    timelapse_decision = TimeLapse.from_properties(timelapse_properties)
+    return  ElementProviderOutput(timelapse_decision)
